@@ -1326,11 +1326,10 @@ function showSyncStatus(text) {
   if (statusEl) {
     statusEl.textContent = text;
   }
-  // =====================================================================
-// ✨ 補在檔案最底部：顳顎關節症狀彈窗控制與同步儲存
+// =====================================================================
+// ✨ 顳顎關節症狀彈窗控制與同步儲存 (修正大小寫版)
 // =====================================================================
 function openTmySymptomsModal() {
-  // 動態建立或尋找現有的症狀彈窗 HTML
   let modal = document.getElementById("modal-tmy-symptoms");
   if (!modal) {
     modal = document.createElement("dialog");
@@ -1365,14 +1364,12 @@ function openTmySymptomsModal() {
     `;
     document.body.appendChild(modal);
     
-    // 綁定表單提交監聽
     document.getElementById("form-tmy-symptoms").addEventListener("submit", (e) => {
       e.preventDefault();
       saveTmySymptomsFormResult();
     });
   }
   
-  // 重置勾選狀態
   const checkboxes = modal.querySelectorAll("input[type='checkbox']");
   checkboxes.forEach(cb => cb.checked = false);
   
@@ -1383,15 +1380,12 @@ async function saveTmySymptomsFormResult() {
   const today = new Date().toISOString().split("T")[0];
   const modal = document.getElementById("modal-tmy-symptoms");
   
-  // 收集症狀
   const symptomCbs = modal.querySelectorAll("input[name='symptom']:checked");
   const symptomsList = Array.from(symptomCbs).map(cb => cb.value);
   
-  // 收集用藥
   const medCb = document.getElementById("tmy-med-relaxant");
   const medication = medCb && medCb.checked ? "muscle_relaxant" : "";
 
-  // 如果什麼都沒勾，代表今天沒症狀
   if (symptomsList.length === 0 && !medication) {
     alert("未勾選任何項目，未新增紀錄。");
     modal.close();
@@ -1408,11 +1402,11 @@ async function saveTmySymptomsFormResult() {
   saveTmySymptomsLog(newLog);
   modal.close();
   
-  // 2. 重新渲染儀表板刷新近30天計數
-  if (typeof renderDashboard === "function") renderDashboard();
+  // 2. 重新刷新長期健康追蹤的畫面
+  if (typeof renderLongTermItems === "function") renderLongTermItems();
   alert(`📊 顳顎關節症狀已紀錄成功！`);
 
-  // 3. 自動同步寫回試算表
+  // 3. 雲端同步 (這裡修正為大寫 W 囉！)
   try {
     showSyncStatus("同步中...");
     const res = await syncWithCloud();
@@ -1425,5 +1419,4 @@ async function saveTmySymptomsFormResult() {
     console.error("症狀同步失敗:", err);
     showSyncStatus("同步出錯");
   }
-}
 }
