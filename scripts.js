@@ -905,7 +905,7 @@ function renderLongTermItems() {
             <span>📊 症狀監測 (30天)</span>
             <div style="display:flex; gap:6px;">
               <button onclick="openTmySymptomSummaryModal()" style="padding:2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">📋症狀摘要</button>
-              <button onclick="openTmySymptomsModal()" style="padding: 2px 10px; font-size: 0.9rem; font-weight: bold; background: #757A73; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;">+</button>
+              <button onclick="openTmySymptomsModal()" style="padding: 2px 10px; font-size: 0.9rem; font-weight: bold; background: #E8B4B8; color: white; border: none; border-radius: 4px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;">+</button>
             </div>
           </div>
           <div style="font-size:0.85rem; color:var(--text-muted);">
