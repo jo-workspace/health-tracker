@@ -902,7 +902,7 @@ function renderLongTermItems() {
         
         <div class="tmy-stats-box" style="margin-top:12px; padding:10px; background:rgba(239,68,68,0.03); border-left:4px solid var(--danger); border-radius:4px;">
           <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-            <span>📊 顳顎症狀監測 (近30天)</span>
+            <span>📊 症狀監測 (30天)</span>
             <div style="display:flex; gap:6px;">
               <button onclick="openTmySymptomSummaryModal()" style="padding:2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">📋 查看回診症狀摘要</button>
               <button onclick="openTmySymptomsModal()" style="padding:2px 8px; font-size:0.75rem; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer;">➕ 記症狀</button>
