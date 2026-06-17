@@ -780,7 +780,9 @@ function renderLongTermItems() {
     
     let nextCheckupHtml = "";
     if (log.nextCheckupDate) {
-      const nextDate = new Date(log.nextCheckupDate + "T00:00:00");
+      // 先用 substring(0, 10) 確保只拿到 "YYYY-MM-DD" 乾淨格式，再建立時間物件
+      const cleanNextDateStr = log.nextCheckupDate.substring(0, 10);
+      const nextDate = new Date(cleanNextDateStr + "T00:00:00");
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const diffDays = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -814,7 +816,7 @@ function renderLongTermItems() {
       <div class="lt-card-body">
         <div class="lt-info-row">
           <span class="lt-info-label">上次檢查</span>
-          <span class="lt-info-value">${log.date}</span>
+          <span class="lt-info-value">${formatDateOnly(log.date)}</span>
         </div>
         ${log.hospital || log.doctor ? `
           <div class="lt-info-row">
