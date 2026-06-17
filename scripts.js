@@ -9,6 +9,7 @@
 
 const KEY_PAIN_LOGS    = "pain_tracker_pain_logs";
 const KEY_LT_LOGS      = "pain_tracker_long_term_logs";
+const KEY_SPLINT_LOGS  = "pain_tracker_bite_splint_logs";
 const KEY_SYNC_URL     = "pain_tracker_sync_url";
 const KEY_LAST_SYNCED  = "pain_tracker_last_synced";
 const KEY_API_TOKEN    = "pain_tracker_api_token";
