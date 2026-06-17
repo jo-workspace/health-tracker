@@ -1326,6 +1326,8 @@ function showSyncStatus(text) {
   if (statusEl) {
     statusEl.textContent = text;
   }
+} // 💡 修正：在這裡正確關閉 showSyncStatus 函式
+
 // =====================================================================
 // ✨ 顳顎關節症狀彈窗控制與同步儲存 (修正大小寫版)
 // =====================================================================
@@ -1406,7 +1408,7 @@ async function saveTmySymptomsFormResult() {
   if (typeof renderLongTermItems === "function") renderLongTermItems();
   alert(`📊 顳顎關節症狀已紀錄成功！`);
 
-  // 3. 雲端同步 (這裡修正為大寫 W 囉！)
+  // 3. 雲端同步
   try {
     showSyncStatus("同步中...");
     const res = await syncWithCloud();
@@ -1419,4 +1421,4 @@ async function saveTmySymptomsFormResult() {
     console.error("症狀同步失敗:", err);
     showSyncStatus("同步出錯");
   }
-}
+} // 💡 修正：此處做為檔案結尾，剛好對應關閉 saveTmySymptomsFormResult
