@@ -236,11 +236,8 @@ async function syncWithCloud() {
 // =====================================================================
 
 function loadModals() {
-  return fetch('modals.html')
-    .then(r => r.text())
-    .then(html => {
-      document.getElementById('modals-container').innerHTML = html;
-    });
+  // modals.html is now inlined directly into index.html to support file:// protocol and Apps Script environment
+  return Promise.resolve();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -1283,6 +1280,61 @@ function formatDateOnly(dateString) {
     console.error("日期解析失敗:", dateString, e);
     return dateString;
   }
+}
+
+// 輔助函式：取得指定日期該週的起點
+function getStartOfWeek(date, startOnMonday = true) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = d.getDate() - day + (startOnMonday ? (day === 0 ? -6 : 1) : 0);
+  const start = new Date(d.setDate(diff));
+  start.setHours(0, 0, 0, 0);
+  return start;
+}
+
+// 輔助函式：判斷是否為本週
+function isCurrentWeek(date) {
+  const now = new Date();
+  const startOfThisWeek = getStartOfWeek(now);
+  const endOfThisWeek = new Date(startOfThisWeek);
+  endOfThisWeek.setDate(startOfThisWeek.getDate() + 7);
+  
+  const targetTime = date.getTime();
+  return targetTime >= startOfThisWeek.getTime() && targetTime < endOfThisWeek.getTime();
+}
+
+// 輔助函式：判斷是否為上週
+function isLastWeek(date) {
+  const now = new Date();
+  const startOfThisWeek = getStartOfWeek(now);
+  const startOfLastWeek = new Date(startOfThisWeek);
+  startOfLastWeek.setDate(startOfThisWeek.getDate() - 7);
+  const endOfLastWeek = startOfThisWeek;
+  
+  const targetTime = date.getTime();
+  return targetTime >= startOfLastWeek.getTime() && targetTime < endOfLastWeek.getTime();
+}
+
+// 輔助函式：計算年度每週平均配戴次數
+function calculateYearlyWeeklyAverage(logs) {
+  if (!logs || logs.length === 0) return 0;
+  
+  const dates = logs.map(l => new Date(l.date).getTime()).filter(t => !isNaN(t));
+  if (dates.length === 0) return 0;
+  
+  const minTime = Math.min(...dates);
+  const maxTime = Math.max(...dates, Date.now());
+  
+  const diffMs = maxTime - minTime;
+  const diffWeeks = Math.max(1, diffMs / (7 * 24 * 60 * 60 * 1000));
+  
+  const avg = logs.length / diffWeeks;
+  return avg.toFixed(1);
+}
+
+// 輔助函式：格式化時間差
+function formatTimeAgo(timestamp) {
+  return getRelativeTime(timestamp);
 }
 // =====================================================================
 // ✨ 補在檔案最底部：一鍵紀錄咬合板配戴並自動同步

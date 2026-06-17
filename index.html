@@ -153,8 +153,202 @@
     </a>
   </nav>
 
-  <!-- 彈窗容器 — 由 scripts.js 動態載入 modals.html -->
-  <div id="modals-container"></div>
+  <!-- 彈窗容器 — 直接內嵌所有 modals.html 內容以支援離線與 Apps Script 環境 -->
+  <div id="modals-container">
+    <!-- 1. 新增疼痛日誌 Modal -->
+    <dialog id="modal-pain" class="app-modal">
+      <div class="modal-header">
+        <h2><i data-lucide="activity"></i> 新增疼痛記錄</h2>
+        <button class="btn-close-modal" data-target="modal-pain"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-pain" method="dialog">
+        <input type="hidden" id="pain-id">
+        
+        <div class="form-group">
+          <label for="pain-date">日期與時間</label>
+          <input type="datetime-local" id="pain-date" required>
+        </div>
+
+        <div class="form-group">
+          <label for="pain-location">疼痛部位</label>
+          <input type="text" id="pain-location" list="common-locations" placeholder="例如：右膝外側、左腳踝" required autocomplete="off">
+          <datalist id="common-locations">
+            <option value="右膝外側">
+            <option value="右膝蓋">
+            <option value="左膝蓋">
+            <option value="右踝">
+            <option value="左踝">
+            <option value="足底筋膜">
+            <option value="下背部">
+            <option value="右肩膀">
+            <option value="左肩膀">
+            <option value="小腿肌">
+            <option value="右臀肌">
+            <option value="左臀肌">
+          </datalist>
+        </div>
+
+        <div class="form-group">
+          <div class="label-with-value">
+            <label for="pain-intensity">疼痛指數 (1-10)</label>
+            <span id="pain-intensity-value" class="slider-badge badge-pain-4">4</span>
+          </div>
+          <input type="range" id="pain-intensity" min="1" max="10" value="4" step="1">
+          <div id="pain-intensity-desc" class="intensity-desc-text">輕度（微酸、緊繃，運動時隱微有感）</div>
+          <div class="intensity-hints">
+            <span>輕微 (1)</span>
+            <span>中度 (5)</span>
+            <span>劇烈 (10)</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>觸發原因/活動</label>
+          <div class="tag-selector" id="pain-trigger-selector">
+            <button type="button" class="tag-btn active" data-value="跑步">跑步</button>
+            <button type="button" class="tag-btn" data-value="重訓">重訓</button>
+            <button type="button" class="tag-btn" data-value="日常活動">日常活動</button>
+            <button type="button" class="tag-btn" data-value="不明原因">不明原因</button>
+            <button type="button" class="tag-btn" data-value="自訂" id="tag-custom-trigger">自訂</button>
+          </div>
+          <input type="text" id="pain-trigger-custom" class="hidden-input" placeholder="請輸入自訂觸發活動" style="display:none;">
+        </div>
+
+        <div class="form-group">
+          <label for="pain-notes">狀況備忘 / 細節描述</label>
+          <textarea id="pain-notes" rows="3" placeholder="例如：跑步 5 公里後，膝蓋外側有灼熱刺痛感..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary btn-close-modal" data-target="modal-pain">取消</button>
+          <button type="submit" class="btn btn-primary">儲存記錄</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 2. 新增長期項目/回診 Modal -->
+    <dialog id="modal-longterm" class="app-modal">
+      <div class="modal-header">
+        <h2><i data-lucide="calendar-plus"></i> 新增長期健康追蹤</h2>
+        <button class="btn-close-modal" data-target="modal-longterm"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-longterm" method="dialog">
+        <input type="hidden" id="lt-id">
+        
+        <div class="form-group">
+          <label for="lt-date">檢查日期</label>
+          <input type="date" id="lt-date" required>
+        </div>
+
+        <div class="form-group">
+          <label for="lt-item-name">追蹤項目名稱</label>
+          <input type="text" id="lt-item-name" list="common-lt-items" placeholder="例如：乳房腺瘤 (左側)" required autocomplete="off">
+          <datalist id="common-lt-items">
+            <option value="乳房腺瘤 (左側)">
+            <option value="乳房腺瘤 (右側)">
+            <option value="甲狀腺結節">
+            <option value="血壓追蹤">
+            <option value="體重管理">
+          </datalist>
+        </div>
+
+        <div class="form-group">
+          <label>病灶尺寸 (公釐 mm，非必填)</label>
+          <div class="dimensions-input">
+            <input type="number" id="lt-size-w" step="0.1" min="0" placeholder="長 (L)">
+            <span class="dim-multiplier">×</span>
+            <input type="number" id="lt-size-h" step="0.1" min="0" placeholder="寬 (W)">
+            <span class="dim-multiplier">×</span>
+            <input type="number" id="lt-size-d" step="0.1" min="0" placeholder="厚 (D)">
+            <span class="dim-unit">mm</span>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="lt-hospital">院所名稱</label>
+            <input type="text" id="lt-hospital" placeholder="例如：長庚醫院">
+          </div>
+          <div class="form-group">
+            <label for="lt-doctor">主治醫師</label>
+            <input type="text" id="lt-doctor" placeholder="例如：陳醫師">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="lt-next-date">下次回診預約日期</label>
+          <input type="date" id="lt-next-date">
+        </div>
+
+        <div class="form-group">
+          <label for="lt-notes">醫囑 / 檢查筆記</label>
+          <textarea id="lt-notes" rows="3" placeholder="例如：醫師說尺寸穩定，建議 6 個月後超音波追蹤即可..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary btn-close-modal" data-target="modal-longterm">取消</button>
+          <button type="submit" class="btn btn-primary">儲存記錄</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 3. 快速更新疼痛指數 Modal -->
+    <dialog id="modal-quick-update" class="app-modal modal-small">
+      <div class="modal-header">
+        <h3>更新疼痛指數</h3>
+        <button class="btn-close-modal" data-target="modal-quick-update"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-quick-update" method="dialog">
+        <input type="hidden" id="quick-pain-id">
+        
+        <div class="form-group">
+          <p id="quick-pain-location-title" style="font-weight:600; margin-bottom:12px; font-size:1.1rem; color:var(--text-color);">右膝蓋</p>
+          <div class="label-with-value">
+            <label for="quick-pain-intensity">新疼痛指數 (1-10)</label>
+            <span id="quick-pain-intensity-value" class="slider-badge badge-pain-5">5</span>
+          </div>
+          <input type="range" id="quick-pain-intensity" min="1" max="10" step="1">
+          <div id="quick-pain-intensity-desc" class="intensity-desc-text">中度（明顯痛感，會影響/需要降低運動強度）</div>
+        </div>
+        
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary btn-close-modal" data-target="modal-quick-update">取消</button>
+          <button type="submit" class="btn btn-primary">確認更新</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 4. 同步設定 Modal -->
+    <dialog id="modal-settings" class="app-modal">
+      <div class="modal-header">
+        <h2><i data-lucide="settings"></i> 同步設定</h2>
+        <button class="btn-close-modal" data-target="modal-settings"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-settings">
+        <div class="form-group">
+          <label for="settings-sync-url">GAS Web App URL</label>
+          <input type="url" id="settings-sync-url" placeholder="https://script.google.com/macros/s/...">
+          <p class="form-hint">貼上已部署的 Google Apps Script Web App 網址以啟用雲端同步。</p>
+        </div>
+
+        <div class="form-group">
+          <label for="settings-api-token">API Token <span style="font-weight:400; color:var(--text-dim);">（選填）</span></label>
+          <input type="text" id="settings-api-token" placeholder="自訂驗證用 Token，需在 Code.gs 中驗證">
+          <p class="form-hint">若在 Code.gs 中設有驗證邏輯，請填入對應的 Token。</p>
+        </div>
+
+        <div id="settings-sync-status" class="settings-sync-status"></div>
+
+        <div class="form-actions">
+          <button type="button" id="btn-manual-sync-settings" class="btn btn-secondary">
+            <i data-lucide="refresh-cw" style="width:14px;height:14px;"></i> 立即同步
+          </button>
+          <button type="button" class="btn btn-secondary btn-close-modal" data-target="modal-settings">取消</button>
+          <button type="submit" class="btn btn-primary">儲存</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
 
   <!-- 主控腳本 -->
   <script src="scripts.js"></script>
