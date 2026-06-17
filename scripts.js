@@ -795,6 +795,39 @@ window.markPainRecovered = function(id) {
   }
 };
 
+// 輔育函式：計算回診倒數徽章 HTML
+function getCheckupCountdownBadge(nextCheckupDateStr) {
+  if (!nextCheckupDateStr) return "";
+  
+  const nextDate = new Date(nextCheckupDateStr);
+  nextDate.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const diffTime = nextDate.getTime() - today.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+  
+  let badgeText = "";
+  let badgeStyle = "";
+  
+  if (diffDays > 0) {
+    badgeText = `📅 剩 ${diffDays} 天`;
+    if (diffDays <= 7) {
+      badgeStyle = "background: #fef3c7; color: #d97706; border: 1px solid #fcd34d;"; // 警告黃
+    } else {
+      badgeStyle = "background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;"; // 成功綠
+    }
+  } else if (diffDays === 0) {
+    badgeText = "📅 今天回診";
+    badgeStyle = "background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5; font-weight: bold;";
+  } else {
+    badgeText = `📅 逾期 ${Math.abs(diffDays)} 天`;
+    badgeStyle = "background: #fef2f2; color: #dc2626; border: 1px solid #fca5a5;";
+  }
+  
+  return `<span class="lt-size-badge" style="${badgeStyle} font-size: 0.7rem; padding: 2px 8px; border-radius: 9999px; font-weight: 500; white-space: nowrap;">${badgeText}</span>`;
+}
+
 function renderLongTermItems() {
   const container = document.getElementById("long-term-list");
   if (!container) return;
@@ -834,7 +867,11 @@ function renderLongTermItems() {
   let symptomCount = 0;
   let medCount = 0;
   recentLogs.forEach(l => {
-    if (l.symptoms) symptomCount += l.symptoms.split(',').filter(Boolean).length;
+    // 依日期計算發作次數 (同天有多個症狀只算一次)
+    const symptoms = l.symptoms ? l.symptoms.split(',').filter(Boolean) : [];
+    if (symptoms.length > 0) {
+      symptomCount++;
+    }
     if (l.medication && l.medication.includes('muscle_relaxant')) medCount++;
   });
 
@@ -860,30 +897,23 @@ function renderLongTermItems() {
       sizeStr += " mm";
     }
     
-    const clinicInfo = log.hospital || log.doctor ? ` |  ${log.hospital} ${log.doctor}` : "";
+    const clinicInfo = log.hospital || log.doctor ? ` | ${log.hospital} ${log.doctor}` : "";
+    const nextCheckupStr = log.nextCheckupDate ? ` | 下次回診: ${formatDateOnly(log.nextCheckupDate)}` : "";
     
     card.innerHTML = `
-      <div class="lt-card-header">
+      <div class="lt-card-header" style="display: flex; justify-content: space-between; align-items: center;">
         <span class="lt-title">${escapeHTML(log.itemName)}</span>
-        <span class="lt-size-badge" style="background: var(--primary-light); color: var(--primary); font-weight: 500;">
-          更新於：${formatTimeAgo(log.lastUpdated)}
-        </span>
+        ${getCheckupCountdownBadge(log.nextCheckupDate)}
       </div>
       <div class="lt-card-body">
         <div class="lt-info-row">
           <span class="lt-info-label">詳情</span>
-          <span class="lt-info-value">${formatDateOnly(log.date)}${sizeStr}${clinicInfo}</span>
+          <span class="lt-info-value">${formatDateOnly(log.date)}${sizeStr}${clinicInfo}${nextCheckupStr}</span>
         </div>
-        ${log.nextCheckupDate ? `
-        <div class="lt-info-row" style="background: rgba(232, 180, 184, 0.15); padding: 4px 8px; border-radius: 4px; margin-top: 4px;display: block; width: 100%;">
-          <span class="lt-info-label" style="color: #B87378; font-weight: 500;">📅 下次預約</span>
-          <span class="lt-info-value" style="color: #B87378; font-weight: bold;">${formatDateOnly(log.nextCheckupDate)}</span>
-        </div>
-        ` : ""}
         ${log.notes ? `
         <div class="lt-info-row" style="margin-top: 6px; align-items: flex-start;">
           <span class="lt-info-label">備註</span>
-          <span class="lt-info-value" style="white-space: pre-wrap; background: #f9f9f9; padding: 6px; border-radius: 4px; display: block; width: 100%;">${escapeHTML(log.notes)}</span>
+          <span class="lt-info-value" style="white-space: pre-wrap;">${escapeHTML(log.notes)}</span>
         </div>
         ` : ""}
         
@@ -916,10 +946,11 @@ function renderLongTermItems() {
         ` : ""}
       </div>
       <div class="lt-card-actions" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: #fbfbfb; border-top: 1px solid #f3f3f3; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-        <div>
+        <div style="display: flex; align-items: center; gap: 10px;">
           <button class="card-btn card-btn-edit" onclick="prefillForNewCheckup('${log.id}')">
             <i data-lucide="calendar-plus" style="width:14px; height:14px;"></i> 新增回診紀錄
           </button>
+          <span class="pain-time-muted" style="font-size: 0.7rem; color: var(--text-dim);">更新於：${formatTimeAgo(log.lastUpdated)}</span>
         </div>
         <div style="display: flex; gap: 8px;">
           <button class="history-action-btn" onclick="editRecord('longterm', '${log.id}')" title="編輯"><i data-lucide="edit-3" style="width:14px; height:14px;"></i></button>
@@ -1501,9 +1532,12 @@ window.openTmySymptomSummaryModal = function() {
     "muscle_relaxant": 0
   };
   
+  let symptomDays = 0;
   yearlyLogs.forEach(l => {
-    if (l.symptoms) {
-      l.symptoms.split(',').forEach(s => {
+    const symptoms = l.symptoms ? l.symptoms.split(',').filter(Boolean) : [];
+    if (symptoms.length > 0) {
+      symptomDays++;
+      symptoms.forEach(s => {
         if (counts[s] !== undefined) counts[s]++;
       });
     }
@@ -1518,8 +1552,9 @@ window.openTmySymptomSummaryModal = function() {
       <button class="btn-close-modal" onclick="document.getElementById('modal-tmy-summary').close()"><i data-lucide="x"></i></button>
     </div>
     <div style="padding: 20px;">
-      <div style="font-size:0.9rem; margin-bottom:15px; color:var(--text-muted);">
-        累計記錄天數：<strong style="color:var(--primary)">${yearlyLogs.length}</strong> 天 (近 365 天)
+      <div style="font-size:0.9rem; margin-bottom:15px; color:var(--text-muted); display: flex; gap: 15px;">
+        <span>記錄天數：<strong style="color:var(--text-main)">${yearlyLogs.length}</strong> 天</span>
+        <span>發作天數：<strong style="color:var(--danger)">${symptomDays}</strong> 天</span>
       </div>
       <div style="background:rgba(0,0,0,0.02); padding:12px; border-radius:8px; margin-bottom:15px;">
         <h4 style="margin:0 0 8px 0; font-size:0.9rem;">症狀頻率統計</h4>
