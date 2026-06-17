@@ -795,7 +795,7 @@ window.markPainRecovered = function(id) {
 };
 
 function renderLongTermItems() {
-  const container = document.getElementById("longterm-list");
+  const container = document.getElementById("long-term-list");
   if (!container) return;
   
   const items = getLongTermLogs();
