@@ -989,7 +989,8 @@ function renderHistory() {
     const item = document.createElement("div");
     item.className = `history-item history-item-${log.type}`;
     
-    const displayDate = log.date.replace("T", " ");
+    // 這樣不論後面帶什麼，都只會精準留下 "YYYY-MM-DD"
+    const displayDate = log.date ? log.date.substring(0, 10) : "";
     
     if (log.type === "pain") {
       let statusLabel = "";
@@ -1027,7 +1028,7 @@ function renderHistory() {
         </div>
         <div class="history-item-content">
           <strong>${escapeHTML(log.itemName)}</strong>${sizeStr}${clinicInfo}
-          ${log.nextCheckupDate ? `<br><span style="color:var(--secondary)">下次回診預約：${log.nextCheckupDate}</span>` : ""}
+          ${log.nextCheckupDate ? `<br><span style="color:var(--secondary)">下次回診預約：${log.nextCheckupDate.substring(0, 10)}</span>` : ""}
         </div>
         ${log.notes ? `<div class="history-item-notes">${escapeHTML(log.notes)}</div>` : ""}
         <div class="history-item-actions">
@@ -1048,7 +1049,7 @@ window.editRecord = function(type, id) {
     if (!log) return;
     
     document.getElementById("pain-id").value       = log.id;
-    document.getElementById("pain-date").value     = log.date;
+    if (log.date) {  document.getElementById("pain-date").value = new Date(log.date).toISOString().split('T')[0];}
     document.getElementById("pain-location").value = log.location;
     document.getElementById("pain-intensity").value = log.intensity;
     updatePainIntensityBadge(log.intensity);
@@ -1096,14 +1097,14 @@ window.editRecord = function(type, id) {
     if (!log) return;
     
     document.getElementById("lt-id").value          = log.id;
-    document.getElementById("lt-date").value        = log.date;
+    if (log.date) {  document.getElementById("lt-date").value = new Date(log.date).toISOString().split('T')[0];}
     document.getElementById("lt-item-name").value   = log.itemName;
     document.getElementById("lt-size-w").value      = log.sizeWidth  || "";
     document.getElementById("lt-size-h").value      = log.sizeHeight || "";
     document.getElementById("lt-size-d").value      = log.sizeDepth  || "";
     document.getElementById("lt-hospital").value    = log.hospital   || "";
     document.getElementById("lt-doctor").value      = log.doctor     || "";
-    document.getElementById("lt-next-date").value   = log.nextCheckupDate || "";
+    if (log.nextCheckupDate) {  document.getElementById("lt-next-date").value = new Date(log.nextCheckupDate).toISOString().split('T')[0];}
     document.getElementById("lt-notes").value       = log.notes      || "";
     
     document.getElementById("modal-longterm").showModal();
@@ -1147,4 +1148,28 @@ function escapeHTML(str) {
   return str.replace(/[&<>'"]/g,
     tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag)
   );
+}
+/**
+ * 將任何髒髒的日期字串統一清洗為 YYYY-MM-DD 格式
+ * 支援處理 "2026-06-12T00:37:00.000Z" 或 "2026-03-15 16:00:00.000Z"
+ */
+function formatDateOnly(dateString) {
+  if (!dateString) return '-';
+  try {
+    // 優先直接用正則表達式切出前 10 碼 (YYYY-MM-DD)，這最安全，能防止時區造成的日期跳號
+    const match = dateString.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) {
+      return match[1];
+    }
+    
+    // 如果切不出來，再交給 Date 物件保底
+    const date = new Date(dateString);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+    return dateString; // 真的失敗了才回傳原本的字串
+  } catch (e) {
+    console.error("日期解析失敗:", dateString, e);
+    return dateString;
+  }
 }
