@@ -850,6 +850,7 @@ function renderLongTermItems() {
   // Group by itemName and only display the latest record for each itemName on the dashboard
   const latestItemsMap = new Map();
   items.forEach(log => {
+    if (log.status === "deleted") return;
     const existing = latestItemsMap.get(log.itemName);
     if (!existing || new Date(log.date) > new Date(existing.date) || (new Date(log.date).getTime() === new Date(existing.date).getTime() && log.lastUpdated > existing.lastUpdated)) {
       latestItemsMap.set(log.itemName, log);
@@ -857,7 +858,15 @@ function renderLongTermItems() {
   });
   
   const latestItems = Array.from(latestItemsMap.values());
-  latestItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+  latestItems.sort((a, b) => {
+    const dateA = a.nextCheckupDate ? new Date(a.nextCheckupDate).getTime() : Infinity;
+    const dateB = b.nextCheckupDate ? new Date(b.nextCheckupDate).getTime() : Infinity;
+    
+    if (dateA !== dateB) {
+      return dateA - dateB; // 升序：回診時間越近的排在越上面
+    }
+    return new Date(b.date) - new Date(a.date); // 備用排序：原檢查日期降序
+  });
   
   // 🔄 先在外面把顳顎關節近 30 天的統計數據算好，避免在字串內解析出錯
   const tmyLogs = getTmySymptomsLogs ? getTmySymptomsLogs() : [];
