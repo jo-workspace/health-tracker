@@ -1090,6 +1090,7 @@ function renderHistory() {
   const painLogs   = getPainLogs();
   const ltLogs     = getLongTermLogs();
   const splintLogs = getBiteSplintLogs();
+  const tmyLogs    = getTmySymptomsLogs();
   
   const query = document.getElementById("history-search").value.trim().toLowerCase();
 
@@ -1107,11 +1108,21 @@ function renderHistory() {
   });
 
   ltLogs.forEach(log => {
-    allRecords.push({ ...log, type: "longterm" });
+    if (log.status !== "deleted") {
+      allRecords.push({ ...log, type: "longterm" });
+    }
   });
 
   splintLogs.forEach(log => {
-    allRecords.push({ ...log, type: "splint", itemName: "顳顎關節-咬合板" });
+    if (log.status !== "deleted") {
+      allRecords.push({ ...log, type: "splint", itemName: "顳顎關節-咬合板" });
+    }
+  });
+
+  tmyLogs.forEach(log => {
+    if (log.status !== "deleted") {
+      allRecords.push({ ...log, type: "tmy", itemName: "顳顎關節-症狀紀錄" });
+    }
   });
 
   // 2. 依據目前選取的標籤 (Filter) 進行第一輪篩選
@@ -1138,6 +1149,12 @@ function renderHistory() {
       } else if (log.type === "splint") {
         return (
           (log.itemName && log.itemName.toLowerCase().includes(query)) ||
+          (log.date     && log.date.toLowerCase().includes(query))
+        );
+      } else if (log.type === "tmy") {
+        return (
+          (log.itemName && log.itemName.toLowerCase().includes(query)) ||
+          (log.symptoms && log.symptoms.toLowerCase().includes(query)) ||
           (log.date     && log.date.toLowerCase().includes(query))
         );
       }
@@ -1225,6 +1242,37 @@ function renderHistory() {
           <strong>🦷 顳顎關節-咬合板</strong>
           <div class="lt-status-next" style="color: var(--success); margin-top: 4px;">配戴狀態：✅ 臨床追蹤當日已配戴</div>
         </div>
+        <div class="history-item-actions">
+          <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('splint', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
+        </div>
+      `;
+    } else if (log.type === "tmy") {
+      let symptomsText = [];
+      if (log.symptoms) {
+        log.symptoms.split(',').forEach(s => {
+          if (s === "click") symptomsText.push("🔊咖咖聲");
+          else if (s === "pain_open") symptomsText.push("⚡張口痛");
+          else if (s === "pain_chew") symptomsText.push("🥩咀嚼痛");
+          else if (s === "misalignment") symptomsText.push("📐錯位");
+        });
+      }
+      if (log.medication === "muscle_relaxant") {
+        symptomsText.push("💊肌肉鬆弛劑");
+      }
+      
+      item.innerHTML = `
+        <div class="history-item-header" style="background: rgba(239, 68, 68, 0.05);">
+          <span class="history-type-badge" style="background: rgba(239, 68, 68, 0.1); color: var(--danger);">顳顎症狀</span>
+          <span class="history-item-date">${displayDate}</span>
+        </div>
+        <div class="history-item-content">
+          <strong>🦷 顳顎關節-症狀紀錄</strong>
+          <div style="margin-top: 4px; color: var(--text-main);">${symptomsText.join('、') || '無症狀'}</div>
+        </div>
+        <div class="history-item-actions">
+          <button class="history-action-btn" onclick="editRecord('tmy', '${log.id}')" title="編輯"><i data-lucide="edit-3" style="width:14px; height:14px;"></i></button>
+          <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('tmy', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
+        </div>
       `;
     }
     historyListContainer.appendChild(item);
@@ -1233,6 +1281,10 @@ function renderHistory() {
 }
 
 window.editRecord = function(type, id) {
+  if (type === "tmy") {
+    openTmySymptomsModal(id);
+    return;
+  }
   if (type === "pain") {
     const logs = getPainLogs();
     const log  = logs.find(l => l.id === id);
@@ -1305,9 +1357,37 @@ window.editRecord = function(type, id) {
 window.deleteRecord = function(type, id) {
   if (confirm("您確定要刪除這筆記錄嗎？")) {
     if (type === "pain") {
-      savePainLogsLocal(getPainLogs().filter(l => l.id !== id));
-    } else {
-      saveLongTermLogsLocal(getLongTermLogs().filter(l => l.id !== id));
+      const logs = getPainLogs();
+      const idx = logs.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        logs[idx].status = "deleted";
+        logs[idx].lastUpdated = Date.now();
+        savePainLogsLocal(logs);
+      }
+    } else if (type === "longterm") {
+      const logs = getLongTermLogs();
+      const idx = logs.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        logs[idx].status = "deleted";
+        logs[idx].lastUpdated = Date.now();
+        saveLongTermLogsLocal(logs);
+      }
+    } else if (type === "splint") {
+      const logs = getBiteSplintLogs();
+      const idx = logs.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        logs[idx].status = "deleted";
+        logs[idx].lastUpdated = Date.now();
+        saveBiteSplintLogsLocal(logs);
+      }
+    } else if (type === "tmy") {
+      const logs = getTmySymptomsLogs();
+      const idx = logs.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        logs[idx].status = "deleted";
+        logs[idx].lastUpdated = Date.now();
+        saveTmySymptomsLogsLocal(logs);
+      }
     }
     renderApp();
     renderHistory();
@@ -1465,7 +1545,7 @@ function showSyncStatus(text) {
 // =====================================================================
 // ✨ 顳顎關節症狀彈窗控制與同步儲存 (修正大小寫版)
 // =====================================================================
-function openTmySymptomsModal() {
+function openTmySymptomsModal(editId = null) {
   let modal = document.getElementById("modal-tmy-symptoms");
   if (!modal) {
     modal = document.createElement("dialog");
@@ -1478,6 +1558,7 @@ function openTmySymptomsModal() {
         <button class="btn-close-modal" onclick="document.getElementById('modal-tmy-symptoms').close()"><i data-lucide="x"></i></button>
       </div>
       <form id="form-tmy-symptoms" method="dialog" style="padding: 20px;">
+        <input type="hidden" id="tmy-log-id">
         <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 15px 0;">請勾選今日出現的臨床症狀與用藥情況：</p>
         <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
           <label style="display:flex; align-items:center; gap:8px; font-size:0.95rem; cursor:pointer;"><input type="checkbox" name="symptom" value="click"> 🔊 打開有咖咖聲 (Clicking)</label>
@@ -1501,8 +1582,27 @@ function openTmySymptomsModal() {
     });
   }
   
+  const idInput = document.getElementById("tmy-log-id");
   const checkboxes = modal.querySelectorAll("input[type='checkbox']");
   checkboxes.forEach(cb => cb.checked = false);
+  
+  if (editId) {
+    idInput.value = editId;
+    const logs = getTmySymptomsLogs();
+    const log = logs.find(l => l.id === editId);
+    if (log) {
+      if (log.symptoms) {
+        log.symptoms.split(',').forEach(s => {
+          const cb = modal.querySelector(`input[value="${s}"]`);
+          if (cb) cb.checked = true;
+        });
+      }
+      const medCb = document.getElementById("tmy-med-relaxant");
+      if (medCb) medCb.checked = (log.medication === "muscle_relaxant");
+    }
+  } else {
+    idInput.value = "";
+  }
   
   modal.showModal();
   lucide.createIcons();
@@ -1603,6 +1703,7 @@ window.openTmySymptomSummaryModal = function() {
 }
 
 async function saveTmySymptomsFormResult() {
+  const id = document.getElementById("tmy-log-id").value || null;
   const today = new Date().toISOString().split("T")[0];
   const modal = document.getElementById("modal-tmy-symptoms");
   
@@ -1619,10 +1720,20 @@ async function saveTmySymptomsFormResult() {
   }
 
   const newLog = {
+    id: id || null,
     date: today,
     symptoms: symptomsList.join(","),
     medication: medication
   };
+
+  // 編輯時保持原本記錄的日期，不隨意覆蓋為今日
+  if (id) {
+    const logs = getTmySymptomsLogs();
+    const existingLog = logs.find(l => l.id === id);
+    if (existingLog) {
+      newLog.date = existingLog.date;
+    }
+  }
 
   // 1. 儲存到本地快取
   saveTmySymptomsLog(newLog);
