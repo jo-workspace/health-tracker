@@ -1247,3 +1247,46 @@ function formatDateOnly(dateString) {
     return dateString;
   }
 }
+// =====================================================================
+// ✨ 補在檔案最底部：一鍵紀錄咬合板配戴並自動同步
+// =====================================================================
+async function recordBiteSplintAction() {
+  const today = new Date().toISOString().split("T")[0];
+  
+  const newLog = {
+    date: today
+  };
+
+  // 1. 儲存到瀏覽器本地
+  saveBiteSplintLog(newLog);
+  
+  // 2. 彈出美觀的提示，並立刻重新渲染畫面讓次數+1
+  alert(`🦷 成功紀錄：${today} 已配戴咬合板！`);
+  if (typeof renderDashboard === "function") {
+    renderDashboard();
+  } else if (typeof renderAll === "function") {
+    renderAll();
+  }
+
+  // 3. 自動觸發背景同步，把資料寫回 Google Sheet 的 BiteSplintLogs 表
+  try {
+    showSyncStatus("同步中...");
+    const res = await syncWithCloud();
+    if (res && res.success) {
+      showSyncStatus("已同步");
+    } else {
+      showSyncStatus("同步失敗");
+    }
+  } catch (err) {
+    console.error("自動同步失敗:", err);
+    showSyncStatus("同步出錯");
+  }
+}
+
+// 輔助更新導覽列同步狀態字樣的防錯函式
+function showSyncStatus(text) {
+  const statusEl = document.getElementById("sync-status");
+  if (statusEl) {
+    statusEl.textContent = text;
+  }
+}
