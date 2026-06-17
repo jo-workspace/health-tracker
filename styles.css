@@ -971,6 +971,7 @@ input[type="range"]::-webkit-slider-thumb:active {
   background: var(--overlay-bg-2);
   border: 1px solid var(--card-border);
   color: var(--text-color);
+  white-space: nowrap; /*
 }
 
 .btn-secondary:hover {
