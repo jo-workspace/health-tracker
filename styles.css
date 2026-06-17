@@ -102,35 +102,59 @@ body {
   color: var(--text-color);
 }
 
-.sync-indicator {
+/* 頂部齒輪設定按鈕 */
+.settings-btn {
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 20px;
-  background: var(--overlay-bg-1);
-  border: 1px solid var(--card-border);
-  font-size: 0.75rem;
-  font-weight: 500;
+  justify-content: center;
   color: var(--text-muted);
-  cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.sync-indicator.synced {
-  color: var(--primary);
-  border-color: rgba(127, 142, 129, 0.3);
-  background: rgba(127, 142, 129, 0.06);
+.settings-btn:hover {
+  background: var(--overlay-bg-2);
+  color: var(--text-color);
 }
 
-.sync-indicator.syncing {
-  color: var(--secondary);
-  border-color: rgba(122, 140, 153, 0.3);
-  background: rgba(122, 140, 153, 0.06);
+.settings-btn .icon-settings {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.4s ease;
 }
 
-.sync-indicator.syncing .icon-sync-status {
+.settings-btn:hover .icon-settings {
+  transform: rotate(45deg);
+}
+
+.settings-btn.syncing .icon-settings {
   animation: spin 1.5s linear infinite;
+}
+
+/* 同步狀態小圓點 */
+.sync-dot {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-dim);
+  border: 1.5px solid var(--bg-color);
+  transition: background 0.3s ease;
+}
+
+.sync-dot.synced  { background: var(--success); }
+.sync-dot.pending { background: var(--warning); }
+.sync-dot.syncing {
+  background: var(--secondary);
+  animation: pulse 1s ease infinite;
 }
 
 /* 4. 主內容排版 */
@@ -726,6 +750,43 @@ label {
   font-size: 0.8rem;
   font-weight: 500;
   color: var(--text-color);
+}
+
+.form-hint {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+/* 設定彈窗同步狀態列 */
+.settings-sync-status {
+  margin-bottom: 4px;
+}
+
+.settings-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+
+.settings-status-tag.local {
+  background: var(--overlay-bg-2);
+  color: var(--text-muted);
+}
+
+.settings-status-tag.synced {
+  background: rgba(156, 168, 150, 0.12);
+  color: #556256;
+}
+
+.settings-status-tag.pending {
+  background: rgba(193, 168, 139, 0.12);
+  color: #8a6e47;
 }
 
 .label-with-value {

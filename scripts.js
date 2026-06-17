@@ -11,6 +11,7 @@ const KEY_PAIN_LOGS    = "pain_tracker_pain_logs";
 const KEY_LT_LOGS      = "pain_tracker_long_term_logs";
 const KEY_SYNC_URL     = "pain_tracker_sync_url";
 const KEY_LAST_SYNCED  = "pain_tracker_last_synced";
+const KEY_API_TOKEN    = "pain_tracker_api_token";
 
 function generateUUID() {
   return 'uuid-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11);
@@ -93,6 +94,14 @@ function clearLocalData() {
   localStorage.removeItem(KEY_LAST_SYNCED);
 }
 
+function getApiToken() {
+  return localStorage.getItem(KEY_API_TOKEN) || "";
+}
+
+function saveApiToken(token) {
+  localStorage.setItem(KEY_API_TOKEN, token.trim());
+}
+
 // 與雲端雙向同步 (支援原生 GAS 環境與 Standalone REST 環境)
 async function syncWithCloud() {
   const localPainLogs = getPainLogs();
@@ -132,6 +141,10 @@ async function syncWithCloud() {
   if (!url) {
     return { success: false, reason: "no_url" };
   }
+
+  // 若有設定 API Token，加入 payload 供 Code.gs 驗證
+  const token = getApiToken();
+  if (token) payload.apiToken = token;
   
   try {
     const response = await fetch(url, {
@@ -183,6 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // 載入彈窗片段後，再初始化依賴 modal DOM 的部分
   loadModals().then(() => {
     initModals();
+    initSettingsModal();
     renderApp();
     triggerBackgroundSync(true);
     lucide.createIcons();
@@ -190,6 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // fallback：若 fetch 失敗（例如直接用 file:// 開啟），嘗試用已存在的 modal
     console.warn("modals.html fetch 失敗，嘗試使用 inline modals：", err);
     initModals();
+    initSettingsModal();
     renderApp();
     triggerBackgroundSync(true);
     lucide.createIcons();
@@ -491,29 +506,6 @@ function initDataManagement() {
       }
     });
   }
-
-  document.getElementById("sync-status-indicator").addEventListener("click", async () => {
-    const indicator = document.getElementById("sync-status-indicator");
-    const text      = indicator.querySelector(".sync-text");
-    
-    indicator.className = "sync-indicator syncing";
-    text.textContent = "同步中...";
-    lucide.createIcons();
-    
-    try {
-      const res = await syncWithCloud();
-      if (res.success) {
-        alert(`手動同步成功！\n雲端整合後共計：\n- 疼痛記錄：${res.painCount} 筆\n- 長期健康：${res.ltCount} 筆`);
-      } else if (res.reason === "no_url") {
-        alert("未設定同步網址。若要使用同步功能，請在 localStorage 中設定 GAS Web App URL（key: pain_tracker_sync_url）。");
-      }
-    } catch (err) {
-      alert(`同步失敗：\n${err.message}`);
-    } finally {
-      updateSyncStatusHeader();
-      renderApp();
-    }
-  });
 }
 
 // 背景自動同步處理 (無提示)
@@ -523,11 +515,10 @@ function triggerBackgroundSync(isStartup = false) {
   
   if (!isGAS && !hasUrl) return;
   
-  const indicator = document.getElementById("sync-status-indicator");
-  if (indicator) {
-    indicator.className = "sync-indicator syncing";
-    lucide.createIcons();
-  }
+  const btn = document.getElementById("btn-settings");
+  const dot = document.getElementById("sync-dot");
+  if (btn) btn.classList.add("syncing");
+  if (dot) { dot.className = "sync-dot syncing"; }
   
   syncWithCloud().then(res => {
     console.log("背景自動同步成功", res);
@@ -539,31 +530,103 @@ function triggerBackgroundSync(isStartup = false) {
   });
 }
 
-// 更新頂部 Sync Header 狀態
+// 更新頂部齒輪按鈕同步狀態圓點
 function updateSyncStatusHeader() {
-  const indicator = document.getElementById("sync-status-indicator");
-  const text      = indicator.querySelector(".sync-text");
-  const icon      = indicator.querySelector(".icon-sync-status");
+  const btn = document.getElementById("btn-settings");
+  const dot = document.getElementById("sync-dot");
+  if (!btn || !dot) return;
+
+  const isGAS     = typeof google !== "undefined" && google.script && google.script.run;
   const lastSynced = getLastSynced();
-  
-  const isGAS = typeof google !== "undefined" && google.script && google.script.run;
-  
-  if (isGAS) {
-    indicator.className = "sync-indicator synced";
-    text.textContent = lastSynced ? `雲端託管 (${getRelativeTime(lastSynced)})` : "雲端託管 (待同步)";
-    icon.setAttribute("data-lucide", "cloud");
-  } else {
-    if (!getSyncUrl()) {
-      indicator.className = "sync-indicator";
-      text.textContent = "本地儲存";
-      icon.setAttribute("data-lucide", "cloud-off");
+  const hasUrl    = getSyncUrl() !== "";
+
+  btn.classList.remove("syncing");
+
+  if (isGAS || hasUrl) {
+    if (lastSynced) {
+      dot.className   = "sync-dot synced";
+      btn.title = `已同步 ${getRelativeTime(lastSynced)} · 點擊開啟設定`;
     } else {
-      indicator.className = "sync-indicator synced";
-      text.textContent = lastSynced ? `已同步 (${getRelativeTime(lastSynced)})` : "待同步";
-      icon.setAttribute("data-lucide", "cloud");
+      dot.className   = "sync-dot pending";
+      btn.title = "尚未同步 · 點擊開啟設定";
     }
+  } else {
+    dot.className   = "sync-dot";
+    btn.title = "本地儲存 · 點擊開啟設定";
   }
-  lucide.createIcons();
+}
+
+// 設定彈窗初始化
+function initSettingsModal() {
+  const modalSettings   = document.getElementById("modal-settings");
+  const formSettings    = document.getElementById("form-settings");
+  const btnManualSync   = document.getElementById("btn-manual-sync-settings");
+  const btnSettingsGear = document.getElementById("btn-settings");
+
+  // 點擊齒輪開啟設定
+  btnSettingsGear.addEventListener("click", () => {
+    document.getElementById("settings-sync-url").value   = getSyncUrl();
+    document.getElementById("settings-api-token").value  = getApiToken();
+    updateSettingsSyncStatus();
+    modalSettings.showModal();
+    lucide.createIcons();
+  });
+
+  // 儲存設定
+  formSettings.addEventListener("submit", (e) => {
+    e.preventDefault();
+    saveSyncUrl(document.getElementById("settings-sync-url").value);
+    saveApiToken(document.getElementById("settings-api-token").value);
+    modalSettings.close();
+    updateSyncStatusHeader();
+    if (getSyncUrl()) triggerBackgroundSync();
+  });
+
+  // 立即同步按鈕
+  btnManualSync.addEventListener("click", async () => {
+    // 先暫存目前輸入值
+    saveSyncUrl(document.getElementById("settings-sync-url").value);
+    saveApiToken(document.getElementById("settings-api-token").value);
+
+    const icon = btnManualSync.querySelector("i");
+    btnManualSync.disabled = true;
+    if (icon) icon.setAttribute("data-lucide", "loader");
+    btnManualSync.lastChild.textContent = " 同步中...";
+    lucide.createIcons();
+
+    try {
+      const res = await syncWithCloud();
+      if (res.success) {
+        updateSettingsSyncStatus();
+        updateSyncStatusHeader();
+        renderApp();
+      } else if (res.reason === "no_url") {
+        alert("請先填入 GAS Web App URL。");
+      }
+    } catch (err) {
+      alert(`同步失敗：${err.message}`);
+    } finally {
+      btnManualSync.disabled = false;
+      if (icon) icon.setAttribute("data-lucide", "refresh-cw");
+      btnManualSync.lastChild.textContent = " 立即同步";
+      lucide.createIcons();
+    }
+  });
+}
+
+function updateSettingsSyncStatus() {
+  const statusEl  = document.getElementById("settings-sync-status");
+  if (!statusEl) return;
+  const lastSynced = getLastSynced();
+  const hasUrl    = getSyncUrl() !== "";
+
+  if (!hasUrl) {
+    statusEl.innerHTML = '<span class="settings-status-tag local">● 本地儲存模式（未設定同步網址）</span>';
+  } else if (lastSynced) {
+    statusEl.innerHTML = `<span class="settings-status-tag synced">● 上次同步：${getRelativeTime(lastSynced)}</span>`;
+  } else {
+    statusEl.innerHTML = '<span class="settings-status-tag pending">● 尚未同步</span>';
+  }
 }
 
 
