@@ -54,7 +54,29 @@ function getLongTermLogs() {
 function saveLongTermLogsLocal(logs) {
   localStorage.setItem(KEY_LT_LOGS, JSON.stringify(logs));
 }
+function getBiteSplintLogs() {
+  const data = localStorage.getItem("pain_tracker_bite_splint_logs");
+  return data ? JSON.parse(data) : [];
+}
 
+function saveBiteSplintLogsLocal(logs) {
+  localStorage.setItem("pain_tracker_bite_splint_logs", JSON.stringify(logs));
+}
+
+function saveBiteSplintLog(log) {
+  const logs = getBiteSplintLogs();
+  log.lastUpdated = Date.now();
+  if (!log.id) {
+    log.id = generateUUID();
+    logs.push(log);
+  } else {
+    const idx = logs.findIndex(l => l.id === log.id);
+    if (idx !== -1) logs[idx] = { ...logs[idx], ...log };
+    else logs.push(log);
+  }
+  saveBiteSplintLogsLocal(logs);
+  return log;
+}
 function saveLongTermLog(log) {
   const logs = getLongTermLogs();
   log.lastUpdated = Date.now();
@@ -104,11 +126,14 @@ function saveApiToken(token) {
 
 // 與雲端雙向同步 (支援原生 GAS 環境與 Standalone REST 環境)
 async function syncWithCloud() {
-  const localPainLogs = getPainLogs();
-  const localLtLogs   = getLongTermLogs();
+  const localPainLogs   = getPainLogs();
+  const localLtLogs     = getLongTermLogs();
+  const localSplintLogs = getBiteSplintLogs(); // 抓取本地咬合板紀錄
+
   const payload = {
     painLogs: localPainLogs,
-    longTermLogs: localLtLogs
+    longTermLogs: localLtLogs,
+    biteSplintLogs: localSplintLogs // 打包帶走
   };
 
   // 1. 若處於 Google Apps Script 託管環境，採用 google.script.run 原生連線 (免設網址)
@@ -119,6 +144,7 @@ async function syncWithCloud() {
           if (result && result.status === "success") {
             savePainLogsLocal(result.painLogs || []);
             saveLongTermLogsLocal(result.longTermLogs || []);
+            saveBiteSplintLogsLocal(result.biteSplintLogs || []); // 同步存回本地
             localStorage.setItem(KEY_LAST_SYNCED, Date.now().toString());
             resolve({
               success: true,
@@ -741,6 +767,39 @@ window.markPainRecovered = function(id) {
 
 function renderLongTermItems() {
   const ltListContainer = document.getElementById("long-term-list");
+  // --- 💡 咬合板每週平均計算機開始 ---
+  const splintLogs = getBiteSplintLogs();
+  let currentWeekCount = 0;
+  let lastWeekCount = 0;
+  let yearlyWeeklyAvg = 0;
+
+  if (splintLogs.length > 0) {
+    const now = new Date();
+    const weeklyCounts = {};
+    
+    splintLogs.forEach(log => {
+      const date = new Date(log.date.substring(0, 10));
+      const oneJan = new Date(date.getFullYear(), 0, 1);
+      const numberOfDays = Math.floor((date - oneJan) / (24 * 60 * 60 * 1000));
+      const weekNumber = Math.ceil((date.getDay() + 1 + numberOfDays) / 7);
+      const weekKey = `${date.getFullYear()}-W${weekNumber}`;
+      weeklyCounts[weekKey] = (weeklyCounts[weekKey] || 0) + 1;
+    });
+
+    const currentOneJan = new Date(now.getFullYear(), 0, 1);
+    const currentNumDays = Math.floor((now - currentOneJan) / (24 * 60 * 60 * 1000));
+    const currentWeekNum = Math.ceil((now.getDay() + 1 + currentNumDays) / 7);
+    
+    const currentWeekKey = `${now.getFullYear()}-W${currentWeekNum}`;
+    const lastWeekKey = `${now.getFullYear()}-W${currentWeekNum - 1}`;
+
+    currentWeekCount = weeklyCounts[currentWeekKey] || 0;
+    lastWeekCount = weeklyCounts[lastWeekKey] || 0;
+
+    const totalWeeksRecorded = Object.keys(weeklyCounts).length;
+    yearlyWeeklyAvg = totalWeeksRecorded > 0 ? (splintLogs.length / totalWeeksRecorded).toFixed(1) : 0;
+  }
+  // --- 💡 咬合板每週平均計算機結束 ---
   const logs = getLongTermLogs();
   
   if (logs.length === 0) {
@@ -817,6 +876,19 @@ function renderLongTermItems() {
           <span class="lt-info-label">上次檢查</span>
           <span class="lt-info-value">${formatDateOnly(log.date)}</span>
         </div>
+        ${log.itemName === "顳顎關節" ? `
+          <div class="splint-stats-box" style="margin-top:12px; padding:10px; background:rgba(59,130,246,0.05); border-left:4px solid var(--primary); border-radius:4px;">
+            <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+              <span>📊 咬合板臨床追蹤</span>
+              <button onclick="recordBiteSplintAction()" style="padding:2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">🦷 記配戴</button>
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-muted); display:flex; gap:15px;">
+              <span>本週：<strong style="color:var(--primary)">${currentWeekCount}</strong> 次</span>
+              <span>上週：<strong>${lastWeekCount}</strong> 次</span>
+              <span>年度每週平均：<strong style="color:var(--success)">${yearlyWeeklyAvg}</strong> 次/週</span>
+            </div>
+          </div>
+        ` : ""}
         ${log.hospital || log.doctor ? `
           <div class="lt-info-row">
             <span class="lt-info-label">就醫資訊</span>
