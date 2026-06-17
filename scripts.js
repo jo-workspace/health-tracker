@@ -809,9 +809,9 @@ function renderLongTermItems() {
     
     card.innerHTML = `
       <div class="lt-card-header">
-        <span class="lt-title">${escapeHTML(log.itemName)}</span>
-        <span class="lt-size-badge">${sizeStr}</span>
-      </div>
+          <span class="lt-title">${escapeHTML(log.itemName)}</span>
+          ${sizeStr ? `<span class="lt-size-badge">${sizeStr}</span>` : ""}
+        </div>
       <div class="lt-card-body">
         <div class="lt-info-row">
           <span class="lt-info-label">上次檢查</span>
