@@ -813,9 +813,9 @@ function getCheckupCountdownBadge(nextCheckupDateStr) {
   if (diffDays > 0) {
     badgeText = `📅 剩 ${diffDays} 天`;
     if (diffDays <= 7) {
-      badgeStyle = "background: #fef3c7; color: #d97706; border: 1px solid #fcd34d;"; // 警告黃
+      badgeStyle = "background: #fef3c7; color: #d97706; border: 0px;"; // 警告黃
     } else {
-      badgeStyle = "background: #ecfdf5; color: #059669; border: 1px solid #a7f3d0;"; // 成功綠
+      badgeStyle = "background: #E2E7E1; color: #6B7767; border: 0px;"; // 成功綠
     }
   } else if (diffDays === 0) {
     badgeText = "📅 今天回診";
