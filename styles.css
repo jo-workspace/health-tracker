@@ -951,7 +951,6 @@ input[type="range"]::-webkit-slider-thumb:active {
   cursor: pointer;
   border: none;
   transition: all 0.2s ease;
-  white-space: nowrap; /*
 }
 
 .btn:active {
