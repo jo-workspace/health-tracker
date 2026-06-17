@@ -875,9 +875,9 @@ function renderLongTermItems() {
           <span class="lt-info-value">起始: ${formatDateOnly(log.date)}${sizeStr}${clinicInfo}</span>
         </div>
         ${log.nextCheckupDate ? `
-        <div class="lt-info-row" style="background: rgba(245,158,11,0.05); padding: 4px 8px; border-radius: 4px; margin-top: 4px;display: block; width: 100%;">
-          <span class="lt-info-label" style="color: #d97706; font-weight: 500;">📅 下次預約</span>
-          <span class="lt-info-value" style="color: #d97706; font-weight: bold;">${formatDateOnly(log.nextCheckupDate)}</span>
+        <div class="lt-info-row" style="background: rgba(232, 180, 184, 0.15); padding: 4px 8px; border-radius: 4px; margin-top: 4px;display: block; width: 100%;">
+          <span class="lt-info-label" style="color: #B87378; font-weight: 500;">📅 下次預約</span>
+          <span class="lt-info-value" style="color: #B87378; font-weight: bold;">${formatDateOnly(log.nextCheckupDate)}</span>
         </div>
         ` : ""}
         ${log.notes ? `
