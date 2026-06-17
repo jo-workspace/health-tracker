@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>身體疼痛與健康追蹤器</title>
+  <meta name="description" content="離線優先的個人健康追蹤工具，記錄疼痛日誌、長期健康追蹤項目與回診提醒。">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Lucide 圖示庫 -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- 樣式表 -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- 全域頂部狀態列 -->
+  <header class="app-header">
+    <div class="header-logo">
+      <i data-lucide="heart-pulse" class="icon-brand"></i>
+      <h1>健康追蹤器</h1>
+    </div>
+    <div id="sync-status-indicator" class="sync-indicator" title="點擊手動同步">
+      <i data-lucide="cloud-off" class="icon-sync-status"></i>
+      <span class="sync-text">本地儲存</span>
+    </div>
+  </header>
+
+  <!-- 主內容容器 -->
+  <main class="app-content">
+
+    <!-- ================== 分頁 1: 儀表板 (Dashboard) ================== -->
+    <section id="tab-dashboard" class="tab-panel active">
+      <!-- 快速新增區 -->
+      <div class="quick-actions">
+        <button id="btn-open-pain-modal" class="action-card action-pain">
+          <div class="action-icon">
+            <i data-lucide="activity"></i>
+          </div>
+          <div class="action-info">
+            <h3>記錄疼痛</h3>
+            <p>跑步/重訓/不明疼痛</p>
+          </div>
+        </button>
+
+        <button id="btn-open-lt-modal" class="action-card action-longterm">
+          <div class="action-icon">
+            <i data-lucide="calendar-plus"></i>
+          </div>
+          <div class="action-info">
+            <h3>長期追蹤</h3>
+            <p>腺瘤大小/回診備忘</p>
+          </div>
+        </button>
+      </div>
+
+      <!-- 現存痛點區 -->
+      <section class="dashboard-section">
+        <div class="section-title">
+          <i data-lucide="flame"></i>
+          <h2>活躍中的疼痛部位</h2>
+        </div>
+        <div id="active-pain-list" class="card-list">
+          <!-- 動態渲染活躍卡片 -->
+        </div>
+      </section>
+
+      <!-- 長期追蹤項目區 -->
+      <section class="dashboard-section">
+        <div class="section-title">
+          <i data-lucide="clipboard-list"></i>
+          <h2>長期健康追蹤 (乳房腺瘤等)</h2>
+        </div>
+        <div id="long-term-list" class="card-list">
+          <!-- 動態渲染長期追蹤卡片 -->
+        </div>
+      </section>
+
+      <!-- 統計摘要區 -->
+      <section class="dashboard-section">
+        <div class="section-title">
+          <i data-lucide="trending-up"></i>
+          <h2>歷史數據快照</h2>
+        </div>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-label">上次痛感發生</span>
+            <span id="stat-last-pain-time" class="stat-value">-</span>
+            <span id="stat-last-pain-detail" class="stat-sub">-</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">最近 30 天記錄</span>
+            <span id="stat-30day-count" class="stat-value">0 次</span>
+            <span class="stat-sub">疼痛登入次數</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">最常疼痛部位</span>
+            <span id="stat-common-pain" class="stat-value">-</span>
+            <span id="stat-common-pain-count" class="stat-sub">記錄 0 次</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-label">追蹤中長期項目</span>
+            <span id="stat-lt-count" class="stat-value">0 個</span>
+            <span class="stat-sub">目前列管項目</span>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- ================== 分頁 2: 歷史紀錄 (History) ================== -->
+    <section id="tab-history" class="tab-panel">
+      <div class="history-controls">
+        <div class="search-bar">
+          <i data-lucide="search"></i>
+          <input type="text" id="history-search" placeholder="搜尋部位、原因或醫師...">
+        </div>
+        <div class="filter-tabs">
+          <button class="filter-btn active" data-filter="all">全部</button>
+          <button class="filter-btn" data-filter="pain">疼痛日誌</button>
+          <button class="filter-btn" data-filter="longterm">長期追蹤</button>
+        </div>
+      </div>
+
+      <div id="history-list" class="history-list">
+        <!-- 動態渲染歷史條目 -->
+      </div>
+
+      <!-- 頁尾清除快取提示 -->
+      <div class="history-footer">
+        <button id="btn-clear-cache" class="btn-text-muted">清除手機本地快取資料</button>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 底部導覽列 — 使用 anchor link 切換分頁 -->
+  <nav class="bottom-nav">
+    <a href="#tab-dashboard" class="nav-item active" data-tab="tab-dashboard">
+      <i data-lucide="layout-dashboard"></i>
+      <span>儀表板</span>
+    </a>
+    <a href="#tab-history" class="nav-item" data-tab="tab-history">
+      <i data-lucide="history"></i>
+      <span>歷史紀錄</span>
+    </a>
+  </nav>
+
+  <!-- 彈窗容器 — 由 scripts.js 動態載入 modals.html -->
+  <div id="modals-container"></div>
+
+  <!-- 主控腳本 -->
+  <script src="scripts.js"></script>
+</body>
+</html>
