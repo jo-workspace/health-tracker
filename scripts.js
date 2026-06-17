@@ -1030,7 +1030,11 @@ function renderHistory() {
         </div>
         <div class="history-item-content">
           <strong>${escapeHTML(log.itemName)}</strong>${sizeStr}${clinicInfo}
-          ${log.nextCheckupDate ? `<br><span style="color:var(--secondary)">下次回診預約：${log.nextCheckupDate.substring(0, 10)}</span>` : ""}
+          ${log.nextCheckupDate ? (() => {
+              const cleanDateTime = log.nextCheckupDate.replace('T', ' ').replace('Z', '').split('.')[0];
+              const displayDateTime = cleanDateTime.length >= 16 ? cleanDateTime.substring(0, 16) : cleanDateTime.substring(0, 10);
+              return `<br><span style="color:var(--secondary)">下次回診預約：${displayDateTime}</span>`;
+            })() : ""}
         </div>
         ${log.notes ? `<div class="history-item-notes">${escapeHTML(log.notes)}</div>` : ""}
         <div class="history-item-actions">
