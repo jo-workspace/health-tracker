@@ -898,7 +898,7 @@ function renderLongTermItems() {
     }
     
     const clinicInfo = log.hospital || log.doctor ? ` | ${log.hospital} ${log.doctor}` : "";
-    const nextCheckupStr = log.nextCheckupDate ? ` | 下次回診: ${formatDateOnly(log.nextCheckupDate)}` : "";
+    const nextCheckupStr = log.nextCheckupDate ? `<br>下次回診: ${formatDateOnly(log.nextCheckupDate)}` : "";
     
     card.innerHTML = `
       <div class="lt-card-header" style="display: flex; justify-content: space-between; align-items: center;">
