@@ -187,6 +187,7 @@ async function syncWithCloud() {
     if (result.status === "success") {
       savePainLogsLocal(result.painLogs || []);
       saveLongTermLogsLocal(result.longTermLogs || []);
+      saveBiteSplintLogsLocal(result.biteSplintLogs || []);
       localStorage.setItem(KEY_LAST_SYNCED, Date.now().toString());
       return {
         success: true,
