@@ -39,13 +39,15 @@ function saveTmySymptomsLogsLocal(logs) {
 function saveTmySymptomsLog(log) {
   const logs = getTmySymptomsLogs();
   log.lastUpdated = Date.now();
-  if (!log.id) {
-    log.id = generateUUID();
-    logs.push(log);
+  
+  const existingIdx = logs.findIndex(l => l.date === log.date);
+  if (existingIdx !== -1) {
+    logs[existingIdx] = { ...logs[existingIdx], ...log, id: logs[existingIdx].id };
   } else {
-    const idx = logs.findIndex(l => l.id === log.id);
-    if (idx !== -1) logs[idx] = { ...logs[idx], ...log };
-    else logs.push(log);
+    if (!log.id) {
+      log.id = generateUUID();
+    }
+    logs.push(log);
   }
   saveTmySymptomsLogsLocal(logs);
   return log;
@@ -90,13 +92,15 @@ function saveBiteSplintLogsLocal(logs) {
 function saveBiteSplintLog(log) {
   const logs = getBiteSplintLogs();
   log.lastUpdated = Date.now();
-  if (!log.id) {
-    log.id = generateUUID();
-    logs.push(log);
+  
+  const existingIdx = logs.findIndex(l => l.date === log.date);
+  if (existingIdx !== -1) {
+    logs[existingIdx] = { ...logs[existingIdx], ...log, id: logs[existingIdx].id };
   } else {
-    const idx = logs.findIndex(l => l.id === log.id);
-    if (idx !== -1) logs[idx] = { ...logs[idx], ...log };
-    else logs.push(log);
+    if (!log.id) {
+      log.id = generateUUID();
+    }
+    logs.push(log);
   }
   saveBiteSplintLogsLocal(logs);
   return log;
@@ -810,6 +814,18 @@ function renderLongTermItems() {
     return;
   }
   
+  // Group by itemName and only display the latest record for each itemName on the dashboard
+  const latestItemsMap = new Map();
+  items.forEach(log => {
+    const existing = latestItemsMap.get(log.itemName);
+    if (!existing || new Date(log.date) > new Date(existing.date) || (new Date(log.date).getTime() === new Date(existing.date).getTime() && log.lastUpdated > existing.lastUpdated)) {
+      latestItemsMap.set(log.itemName, log);
+    }
+  });
+  
+  const latestItems = Array.from(latestItemsMap.values());
+  latestItems.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
   // 🔄 先在外面把顳顎關節近 30 天的統計數據算好，避免在字串內解析出錯
   const tmyLogs = getTmySymptomsLogs ? getTmySymptomsLogs() : [];
   const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
@@ -832,7 +848,7 @@ function renderLongTermItems() {
 
   container.innerHTML = "";
   
-  items.forEach(log => {
+  latestItems.forEach(log => {
     const card = document.createElement("div");
     card.className = "history-card lt-card";
     
@@ -848,7 +864,7 @@ function renderLongTermItems() {
     
     card.innerHTML = `
       <div class="lt-card-header">
-        <span class="lt-title">📦 ${escapeHTML(log.itemName)}</span>
+        <span class="lt-title">${escapeHTML(log.itemName)}</span>
         <span class="lt-size-badge" style="background: var(--primary-light); color: var(--primary); font-weight: 500;">
           更新於：${formatTimeAgo(log.lastUpdated)}
         </span>
@@ -887,7 +903,10 @@ function renderLongTermItems() {
         <div class="tmy-stats-box" style="margin-top:12px; padding:10px; background:rgba(239,68,68,0.03); border-left:4px solid var(--danger); border-radius:4px;">
           <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
             <span>📊 顳顎症狀監測 (近30天)</span>
-            <button onclick="openTmySymptomsModal()" style="padding:2px 8px; font-size:0.75rem; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer;">➕ 記症狀</button>
+            <div style="display:flex; gap:6px;">
+              <button onclick="openTmySymptomSummaryModal()" style="padding:2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">📋 查看回診症狀摘要</button>
+              <button onclick="openTmySymptomsModal()" style="padding:2px 8px; font-size:0.75rem; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer;">➕ 記症狀</button>
+            </div>
           </div>
           <div style="font-size:0.85rem; color:var(--text-muted);">
             <span>發作次數：<strong style="color:var(--danger)">${symptomCount}</strong> 次</span>
@@ -896,9 +915,16 @@ function renderLongTermItems() {
         </div>
         ` : ""}
       </div>
-      <div class="lt-card-actions" style="display: flex; justify-content: flex-end; gap: 8px; padding: 8px 16px; background: #fbfbfb; border-top: 1px solid #f3f3f3; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
-        <button class="history-action-btn" onclick="editRecord('longterm', '${log.id}')" title="編輯"><i data-lucide="edit-3" style="width:14px; height:14px;"></i></button>
-        <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('longterm', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
+      <div class="lt-card-actions" style="display: flex; justify-content: space-between; align-items: center; padding: 8px 16px; background: #fbfbfb; border-top: 1px solid #f3f3f3; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+        <div>
+          <button class="card-btn card-btn-edit" onclick="prefillForNewCheckup('${log.id}')">
+            <i data-lucide="calendar-plus" style="width:14px; height:14px;"></i> 新增回診紀錄
+          </button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="history-action-btn" onclick="editRecord('longterm', '${log.id}')" title="編輯"><i data-lucide="edit-3" style="width:14px; height:14px;"></i></button>
+          <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('longterm', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
+        </div>
       </div>
     `;
     container.appendChild(card);
@@ -916,6 +942,31 @@ window.prefillLongtermModal = function(itemName) {
   
   const today = new Date().toISOString().split("T")[0];
   document.getElementById("lt-date").value = today;
+  
+  modalLongTerm.showModal();
+  lucide.createIcons();
+};
+
+window.prefillForNewCheckup = function(id) {
+  const logs = getLongTermLogs();
+  const log = logs.find(l => l.id === id);
+  if (!log) return;
+  
+  const modalLongTerm = document.getElementById("modal-longterm");
+  const formLongTerm  = document.getElementById("form-longterm");
+  formLongTerm.reset();
+  
+  document.getElementById("lt-id").value = ""; 
+  document.getElementById("lt-item-name").value = log.itemName || "";
+  document.getElementById("lt-hospital").value = log.hospital || "";
+  document.getElementById("lt-doctor").value = log.doctor || "";
+  
+  const today = new Date().toISOString().split("T")[0];
+  document.getElementById("lt-date").value = today;
+  
+  document.getElementById("lt-size-w").value = log.sizeWidth || "";
+  document.getElementById("lt-size-h").value = log.sizeHeight || "";
+  document.getElementById("lt-size-d").value = log.sizeDepth || "";
   
   modalLongTerm.showModal();
   lucide.createIcons();
@@ -1388,20 +1439,15 @@ function openTmySymptomsModal() {
   if (!modal) {
     modal = document.createElement("dialog");
     modal.id = "modal-tmy-symptoms";
-    modal.className = "modal";
-    modal.style.padding = "20px";
-    modal.style.borderRadius = "8px";
-    modal.style.border = "none";
-    modal.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)";
-    modal.style.maxWidth = "400px";
-    modal.style.width = "90%";
+    modal.className = "app-modal";
     
     modal.innerHTML = `
-      <div style="margin-bottom:15px;">
-        <h3 style="margin:0 0 10px 0; display:flex; align-items:center; gap:8px;">🦷 今日顳顎關節狀態</h3>
-        <p style="font-size:0.85rem; color:var(--text-muted); margin:0;">請勾選今日出現的臨床症狀與用藥情況：</p>
+      <div class="modal-header">
+        <h2><i data-lucide="activity"></i> 今日顳顎關節狀態</h2>
+        <button class="btn-close-modal" onclick="document.getElementById('modal-tmy-symptoms').close()"><i data-lucide="x"></i></button>
       </div>
-      <form id="form-tmy-symptoms" method="dialog">
+      <form id="form-tmy-symptoms" method="dialog" style="padding: 20px;">
+        <p style="font-size:0.85rem; color:var(--text-muted); margin:0 0 15px 0;">請勾選今日出現的臨床症狀與用藥情況：</p>
         <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
           <label style="display:flex; align-items:center; gap:8px; font-size:0.95rem; cursor:pointer;"><input type="checkbox" name="symptom" value="click"> 🔊 打開有咖咖聲 (Clicking)</label>
           <label style="display:flex; align-items:center; gap:8px; font-size:0.95rem; cursor:pointer;"><input type="checkbox" name="symptom" value="pain_open"> ⚡ 張口時感覺疼痛</label>
@@ -1410,9 +1456,9 @@ function openTmySymptomsModal() {
           <hr style="border:none; border-top:1px solid #eee; margin:5px 0;">
           <label style="display:flex; align-items:center; gap:8px; font-size:0.95rem; cursor:pointer; color:var(--danger); font-weight:500;"><input type="checkbox" id="tmy-med-relaxant" value="muscle_relaxant"> 💊 今日有服用肌肉鬆弛劑</label>
         </div>
-        <div style="display:flex; justify-content:flex-end; gap:10px;">
-          <button type="button" onclick="document.getElementById('modal-tmy-symptoms').close()" style="padding:6px 12px; background:#eee; border:none; border-radius:4px; cursor:pointer;">取消</button>
-          <button type="submit" style="padding:6px 16px; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:500;">儲存紀錄</button>
+        <div class="form-actions">
+          <button type="button" onclick="document.getElementById('modal-tmy-symptoms').close()" class="btn btn-secondary">取消</button>
+          <button type="submit" class="btn btn-primary" style="background:var(--danger); border-color:var(--danger);">儲存紀錄</button>
         </div>
       </form>
     `;
@@ -1428,6 +1474,97 @@ function openTmySymptomsModal() {
   checkboxes.forEach(cb => cb.checked = false);
   
   modal.showModal();
+  lucide.createIcons();
+}
+
+window.openTmySymptomSummaryModal = function() {
+  let modal = document.getElementById("modal-tmy-summary");
+  if (!modal) {
+    modal = document.createElement("dialog");
+    modal.id = "modal-tmy-summary";
+    modal.className = "app-modal";
+    
+    document.body.appendChild(modal);
+  }
+  
+  const tmyLogs = getTmySymptomsLogs ? getTmySymptomsLogs() : [];
+  const oneYearAgo = Date.now() - (365 * 24 * 60 * 60 * 1000);
+  const yearlyLogs = tmyLogs.filter(l => new Date(l.date).getTime() >= oneYearAgo);
+  
+  yearlyLogs.sort((a, b) => new Date(b.date) - new Date(a.date));
+  
+  const counts = {
+    "click": 0,
+    "pain_open": 0,
+    "pain_chew": 0,
+    "misalignment": 0,
+    "muscle_relaxant": 0
+  };
+  
+  yearlyLogs.forEach(l => {
+    if (l.symptoms) {
+      l.symptoms.split(',').forEach(s => {
+        if (counts[s] !== undefined) counts[s]++;
+      });
+    }
+    if (l.medication === "muscle_relaxant") {
+      counts["muscle_relaxant"]++;
+    }
+  });
+  
+  modal.innerHTML = `
+    <div class="modal-header">
+      <h2><i data-lucide="bar-chart-2"></i> 近一年顳顎關節症狀摘要</h2>
+      <button class="btn-close-modal" onclick="document.getElementById('modal-tmy-summary').close()"><i data-lucide="x"></i></button>
+    </div>
+    <div style="padding: 20px;">
+      <div style="font-size:0.9rem; margin-bottom:15px; color:var(--text-muted);">
+        累計記錄天數：<strong style="color:var(--primary)">${yearlyLogs.length}</strong> 天 (近 365 天)
+      </div>
+      <div style="background:rgba(0,0,0,0.02); padding:12px; border-radius:8px; margin-bottom:15px;">
+        <h4 style="margin:0 0 8px 0; font-size:0.9rem;">症狀頻率統計</h4>
+        <div style="display:flex; flex-direction:column; gap:6px; font-size:0.85rem;">
+          <div style="display:flex; justify-content:space-between;"><span>🔊 咖咖聲 (Clicking)：</span><strong>${counts["click"]} 次</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span>⚡ 張口時感覺疼痛：</span><strong>${counts["pain_open"]} 次</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span>🥩 咬東西時感覺疼痛：</span><strong>${counts["pain_chew"]} 次</strong></div>
+          <div style="display:flex; justify-content:space-between;"><span>📐 咬東西感覺位置錯位：</span><strong>${counts["misalignment"]} 次</strong></div>
+          <hr style="border:none; border-top:1px solid #eee; margin:4px 0;">
+          <div style="display:flex; justify-content:space-between; color:var(--danger);"><span>💊 服用肌肉鬆弛劑：</span><strong>${counts["muscle_relaxant"]} 次</strong></div>
+        </div>
+      </div>
+      <h4 style="margin:0 0 8px 0; font-size:0.9rem;">詳細歷史記錄 (近一年)</h4>
+      <div style="max-height:200px; overflow-y:auto; border:1px solid #eee; border-radius:8px; padding:8px; font-size:0.85rem;">
+        ${yearlyLogs.length === 0 ? `
+          <div style="text-align:center; color:var(--text-muted); padding:20px;">近一年無症狀記錄。</div>
+        ` : yearlyLogs.map(l => {
+          let symptomsText = [];
+          if (l.symptoms) {
+            l.symptoms.split(',').forEach(s => {
+              if (s === "click") symptomsText.push("🔊咖咖聲");
+              else if (s === "pain_open") symptomsText.push("⚡張口痛");
+              else if (s === "pain_chew") symptomsText.push("🥩咀嚼痛");
+              else if (s === "misalignment") symptomsText.push("📐錯位");
+            });
+          }
+          if (l.medication === "muscle_relaxant") {
+            symptomsText.push("💊肌肉鬆弛劑");
+          }
+          return `
+            <div style="display:flex; justify-content:space-between; border-bottom:1px solid #f5f5f5; padding:6px 0;">
+              <span style="font-weight:500;">📅 ${formatDateOnly(l.date)}</span>
+              <span style="color:var(--text-main);">${symptomsText.join('、') || '無症狀'}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div class="form-actions" style="margin-top:20px; justify-content:flex-end;">
+        <button onclick="document.getElementById('modal-tmy-summary').close()" class="btn btn-secondary" style="padding:6px 16px;">關閉</button>
+      </div>
+    </div>
+  `;
+  
+  modal.showModal();
+  lucide.createIcons();
 }
 
 async function saveTmySymptomsFormResult() {
