@@ -1011,65 +1011,73 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function renderHistory() {
   const historyListContainer = document.getElementById("history-list");
-  const painLogs  = getPainLogs();
-  const ltLogs    = getLongTermLogs();
+  
+  // 統一在最上方讀取所有本地快取資料
+  const painLogs   = getPainLogs();
+  const ltLogs     = getLongTermLogs();
   const splintLogs = getBiteSplintLogs();
-  const query     = document.getElementById("history-search").value.trim().toLowerCase();
   
+  const query = document.getElementById("history-search").value.trim().toLowerCase();
+
+  // 抓取目前選取了哪一個標籤按鈕，如果抓不到預設為 "all"
+  const activeFilterBtn = document.querySelector("#tab-history .filter-btn.active");
+  const currentFilter = activeFilterBtn ? activeFilterBtn.getAttribute("data-filter") : "all";
+
   let allRecords = [];
-  splintLogs.forEach(log => {
-    allRecords.push({ ...log, type: "splint", itemName: "顳顎關節-咬合板" });
-  });
+
+  // 1. 如果分類是「全部」或「疼痛日誌」，才匯入疼痛資料
   if (currentFilter === "all" || currentFilter === "pain") {
-    painLogs.forEach(log => { allRecords.push({ ...log, type: "pain" }); });
+    painLogs.forEach(log => {
+      if (log.status !== "deleted") {
+        allRecords.push({ ...log, type: "pain" });
+      }
+    });
   }
+
+  // 2. 如果分類是「全部」或「長期追蹤」，才匯入長期追蹤資料
   if (currentFilter === "all" || currentFilter === "longterm") {
-    ltLogs.forEach(log => { allRecords.push({ ...log, type: "longterm" }); });
+    ltLogs.forEach(log => {
+      allRecords.push({ ...log, type: "longterm" });
+    });
   }
-  
+
+  // 3. 如果分類是「全部」或「咬合板紀錄」，才匯入咬合板資料
+  if (currentFilter === "all" || currentFilter === "splint") {
+    splintLogs.forEach(log => {
+      allRecords.push({ ...log, type: "splint", itemName: "顳顎關節-咬合板" });
+    });
+  }
+
+  // 關鍵字搜尋過濾功能
   if (query) {
     allRecords = allRecords.filter(log => {
-      if (log.type === "splint") {
-      const card = document.createElement("div");
-      card.className = "history-card lt-card"; 
-      card.innerHTML = `
-        <div class="lt-card-header" style="background: rgba(59,130,246,0.08);">
-          <span class="lt-title">🦷 顳顎關節-咬合板</span>
-          <span class="lt-size-badge" style="background: var(--success); color: white;">已配戴</span>
-        </div>
-        <div class="lt-card-body">
-          <div class="lt-info-row">
-            <span class="lt-info-label">配戴日期</span>
-            <span class="lt-info-value">${formatDateOnly(log.date)}</span>
-          </div>
-          <div class="lt-info-row">
-            <span class="lt-info-label">紀錄類型</span>
-            <span class="lt-info-value" style="color: var(--text-muted);">臨床追蹤自我打卡</span>
-          </div>
-        </div>
-      `;
-      historyListContainer.appendChild(card);
-      return; // 渲染完直接跳過，不走下面原本的長期追蹤或疼痛流程
-    }
       if (log.type === "pain") {
         return (
           (log.location && log.location.toLowerCase().includes(query)) ||
           (log.trigger  && log.trigger.toLowerCase().includes(query))  ||
           (log.notes    && log.notes.toLowerCase().includes(query))
         );
-      } else {
+      } else if (log.type === "longterm") {
         return (
           (log.itemName && log.itemName.toLowerCase().includes(query)) ||
           (log.hospital && log.hospital.toLowerCase().includes(query)) ||
           (log.doctor   && log.doctor.toLowerCase().includes(query))   ||
           (log.notes    && log.notes.toLowerCase().includes(query))
         );
+      } else if (log.type === "splint") {
+        return (
+          (log.itemName && log.itemName.toLowerCase().includes(query)) ||
+          (log.date     && log.date.toLowerCase().includes(query))
+        );
       }
+      return false;
     });
   }
-  
+
+  // 統一排序：最新日期在最前面
   allRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
-  
+
+  // 無資料時的空狀態顯示
   if (allRecords.length === 0) {
     historyListContainer.innerHTML = `
       <div class="empty-state">
@@ -1083,13 +1091,13 @@ function renderHistory() {
     lucide.createIcons();
     return;
   }
-  
+
+  // 開始渲染畫面卡片
   historyListContainer.innerHTML = "";
   allRecords.forEach(log => {
     const item = document.createElement("div");
     item.className = `history-item history-item-${log.type}`;
     
-    // 這樣不論後面帶什麼，都只會精準留下 "YYYY-MM-DD"
     const displayDate = log.date ? log.date.substring(0, 10) : "";
     
     if (log.type === "pain") {
@@ -1111,7 +1119,7 @@ function renderHistory() {
           <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('pain', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
         </div>
       `;
-    } else {
+    } else if (log.type === "longterm") {
       let sizeStr = "";
       if (log.sizeWidth) {
         sizeStr = ` | 尺寸: ${log.sizeWidth}`;
@@ -1134,6 +1142,18 @@ function renderHistory() {
         <div class="history-item-actions">
           <button class="history-action-btn" onclick="editRecord('longterm', '${log.id}')" title="編輯"><i data-lucide="edit-3" style="width:14px; height:14px;"></i></button>
           <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('longterm', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
+        </div>
+      `;
+    } else if (log.type === "splint") {
+      // ✨ 這裡就是咬合板在獨立第四個分頁會顯示的精美卡片！
+      item.innerHTML = `
+        <div class="history-item-header" style="background: rgba(59,130,246,0.05);">
+          <span class="history-type-badge" style="background: rgba(59,130,246,0.1); color: var(--primary);">咬合板紀錄</span>
+          <span class="history-item-date">${displayDate}</span>
+        </div>
+        <div class="history-item-content">
+          <strong>🦷 顳顎關節-咬合板</strong>
+          <div class="lt-status-next" style="color: var(--success); margin-top: 4px;">配戴狀態：✅ 臨床追蹤當日已配戴</div>
         </div>
       `;
     }
