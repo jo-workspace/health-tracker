@@ -860,7 +860,7 @@ function renderLongTermItems() {
       sizeStr += " mm";
     }
     
-    const clinicInfo = log.hospital || log.doctor ? ` | 就醫: ${log.hospital} ${log.doctor}` : "";
+    const clinicInfo = log.hospital || log.doctor ? ` |  ${log.hospital} ${log.doctor}` : "";
     
     card.innerHTML = `
       <div class="lt-card-header">
