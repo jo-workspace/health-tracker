@@ -770,13 +770,13 @@ function renderLongTermItems() {
     const card = document.createElement("div");
     card.className = "lt-card";
     
-    let sizeStr = "未記錄尺寸";
-    if (log.sizeWidth) {
-      sizeStr = `${log.sizeWidth}`;
-      if (log.sizeHeight) sizeStr += ` × ${log.sizeHeight}`;
-      if (log.sizeDepth)  sizeStr += ` × ${log.sizeDepth}`;
-      sizeStr += " mm";
-    }
+    let sizeStr = "";
+      if (log.sizeWidth) {
+        sizeStr = `${log.sizeWidth}`;
+        if (log.sizeHeight) sizeStr += ` × ${log.sizeHeight}`;
+        if (log.sizeDepth) sizeStr += ` × ${log.sizeDepth}`;
+        sizeStr += " mm";
+      }
     
     let nextCheckupHtml = "";
     if (log.nextCheckupDate) {
