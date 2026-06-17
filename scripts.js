@@ -871,7 +871,7 @@ function renderLongTermItems() {
       </div>
       <div class="lt-card-body">
         <div class="lt-info-row">
-          <span class="lt-info-label">追蹤詳情</span>
+          <span class="lt-info-label">詳情</span>
           <span class="lt-info-value">${formatDateOnly(log.date)}${sizeStr}${clinicInfo}</span>
         </div>
         ${log.nextCheckupDate ? `
