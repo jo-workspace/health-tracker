@@ -780,9 +780,8 @@ function renderLongTermItems() {
     
     let nextCheckupHtml = "";
     if (log.nextCheckupDate) {
-      // 先用 substring(0, 10) 確保只拿到 "YYYY-MM-DD" 乾淨格式，再建立時間物件
-      const cleanNextDateStr = log.nextCheckupDate.substring(0, 10);
-      const nextDate = new Date(cleanNextDateStr + "T00:00:00");
+      // 統一換成標準日期物件計算天數，不帶任何時間雜訊
+      const nextDate = new Date(log.nextCheckupDate.substring(0, 10));
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const diffDays = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
@@ -1030,11 +1029,7 @@ function renderHistory() {
         </div>
         <div class="history-item-content">
           <strong>${escapeHTML(log.itemName)}</strong>${sizeStr}${clinicInfo}
-          ${log.nextCheckupDate ? (() => {
-              const cleanDateTime = log.nextCheckupDate.replace('T', ' ').replace('Z', '').split('.')[0];
-              const displayDateTime = cleanDateTime.length >= 16 ? cleanDateTime.substring(0, 16) : cleanDateTime.substring(0, 10);
-              return `<br><span style="color:var(--secondary)">下次回診預約：${displayDateTime}</span>`;
-            })() : ""}
+          ${log.nextCheckupDate ? `<div class="lt-status-next">回診預約：${log.nextCheckupDate.substring(0, 10)}</div>` : ""}
         </div>
         ${log.notes ? `<div class="history-item-notes">${escapeHTML(log.notes)}</div>` : ""}
         <div class="history-item-actions">
