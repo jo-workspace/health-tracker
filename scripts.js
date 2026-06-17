@@ -896,7 +896,7 @@ function renderLongTermItems() {
           <div style="font-size:0.85rem; color:var(--text-muted); display:flex; gap:15px;">
             <span>本週：<strong style="color:var(--primary)">${currentweekCount}</strong> 次</span>
             <span>上週：<strong>${lastweekCount}</strong> 次</span>
-            <span>年度每週平均：<strong style="color:var(--success)">${yearlyWeeklyAvg}</strong> 次/週</span>
+            <span>年平均：<strong style="color:var(--success)">${yearlyWeeklyAvg}</strong> 次/週</span>
           </div>
         </div>
         
