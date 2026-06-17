@@ -908,16 +908,38 @@ function renderLongTermItems() {
         </div>
         ${log.itemName === "顳顎關節" ? `
           <div class="splint-stats-box" style="margin-top:12px; padding:10px; background:rgba(59,130,246,0.05); border-left:4px solid var(--primary); border-radius:4px;">
-            <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-              <span>📊 咬合板臨床追蹤</span>
-              <button onclick="recordBiteSplintAction()" style="padding:2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">🦷 記配戴</button>
+              <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                <span>🦷 咬合板臨床追蹤</span>
+                <button onclick="recordBiteSplintAction()" style="padding:2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">記配戴</button>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted); display:flex; gap:15px;">
+                <span>本週：<strong style="color:var(--primary)">${currentweekCount}</strong> 次</span>
+                <span>上週：<strong>${lastweekCount}</strong> 次</span>
+                <span>年度每週平均：<strong style="color:var(--success)">${yearlyWeeklyAvg}</strong> 次/週</span>
+              </div>
             </div>
-            <div style="font-size:0.85rem; color:var(--text-muted); display:flex; gap:15px;">
-              <span>本週：<strong style="color:var(--primary)">${currentWeekCount}</strong> 次</span>
-              <span>上週：<strong>${lastWeekCount}</strong> 次</span>
-              <span>年度每週平均：<strong style="color:var(--success)">${yearlyWeeklyAvg}</strong> 次/週</span>
+            
+            <div class="tmy-stats-box" style="margin-top:12px; padding:10px; background:rgba(239,68,68,0.03); border-left:4px solid var(--danger); border-radius:4px;">
+              <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+                <span>📊 顳顎症狀監測 (近30天)</span>
+                <button onclick="openTmySymptomsModal()" style="padding:2px 8px; font-size:0.75rem; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer;">➕ 記症狀</button>
+              </div>
+              <div style="font-size:0.85rem; color:var(--text-muted);">
+                ${(() => {
+                  const tmyLogs = getTmySymptomsLogs();
+                  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+                  const recentLogs = tmyLogs.filter(l => new Date(l.date).getTime() >= thirtyDaysAgo);
+                  
+                  let symptomCount = 0;
+                  let medCount = 0;
+                  recentLogs.forEach(l => {
+                    if (l.symptoms) symptomCount += l.symptoms.split(',').filter(Boolean).length;
+                    if (l.medication && l.medication.includes('muscle_relaxant')) medCount++;
+                  });
+                  return `<span>發作次數：<strong style="color:var(--danger)">${symptomCount}</strong> 次</span> <span style="margin-left:15px;">肌肉鬆弛劑：<strong>${medCount}</strong> 次</span>`;
+                })()}
+              </div>
             </div>
-          </div>
         ` : ""}
         ${log.hospital || log.doctor ? `
           <div class="lt-info-row">
@@ -1360,4 +1382,104 @@ function showSyncStatus(text) {
   if (statusEl) {
     statusEl.textContent = text;
   }
+  // =====================================================================
+// ✨ 補在檔案最底部：顳顎關節症狀彈窗控制與同步儲存
+// =====================================================================
+function openTmySymptomsModal() {
+  // 動態建立或尋找現有的症狀彈窗 HTML
+  let modal = document.getElementById("modal-tmy-symptoms");
+  if (!modal) {
+    modal = document.createElement("dialog");
+    modal.id = "modal-tmy-symptoms";
+    modal.className = "modal";
+    modal.style.padding = "20px";
+    modal.style.borderRadius = "8px";
+    modal.style.border = "none";
+    modal.style.boxShadow = "0 4px 20px rgba(0,0,0,0.15)";
+    modal.style.maxWidth = "400px";
+    modal.style.width = "90%";
+    
+    modal.innerHTML = `
+      <div style="margin-bottom:15px;">
+        <h3 style="margin:0 0 10px 0; display:flex; align-items:center; gap:8px;">🦷 今日顳顎關節狀態</h3>
+        <p style="font-size:0.85rem; color:var(--text-muted); margin:0;">請勾選今日出現的臨床症狀與用藥情況：</p>
+      </div>
+      <form id="form-tmy-symptoms" method="dialog">
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:20px;">
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.95rem; cursor:pointer;"><input type="checkbox" name="symptom" value="click"> 🔊 打開有咖咖聲 (Clicking)</label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.95rem; cursor:pointer;"><input type="checkbox" name="symptom" value="pain_open"> ⚡ 張口時感覺疼痛</label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.95rem; cursor:pointer;"><input type="checkbox" name="symptom" value="pain_chew"> 🥩 咬東西時感覺疼痛</label>
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.95rem; cursor:pointer;"><input type="checkbox" name="symptom" value="misalignment"> 📐 咬東西感覺位置錯位</label>
+          <hr style="border:none; border-top:1px solid #eee; margin:5px 0;">
+          <label style="display:flex; align-items:center; gap:8px; font-size:0.95rem; cursor:pointer; color:var(--danger); font-weight:500;"><input type="checkbox" id="tmy-med-relaxant" value="muscle_relaxant"> 💊 今日有服用肌肉鬆弛劑</label>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:10px;">
+          <button type="button" onclick="document.getElementById('modal-tmy-symptoms').close()" style="padding:6px 12px; background:#eee; border:none; border-radius:4px; cursor:pointer;">取消</button>
+          <button type="submit" style="padding:6px 16px; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:500;">儲存紀錄</button>
+        </div>
+      </form>
+    `;
+    document.body.appendChild(modal);
+    
+    // 綁定表單提交監聽
+    document.getElementById("form-tmy-symptoms").addEventListener("submit", (e) => {
+      e.preventDefault();
+      saveTmySymptomsFormResult();
+    });
+  }
+  
+  // 重置勾選狀態
+  const checkboxes = modal.querySelectorAll("input[type='checkbox']");
+  checkboxes.forEach(cb => cb.checked = false);
+  
+  modal.showModal();
+}
+
+async function saveTmySymptomsFormResult() {
+  const today = new Date().toISOString().split("T")[0];
+  const modal = document.getElementById("modal-tmy-symptoms");
+  
+  // 收集症狀
+  const symptomCbs = modal.querySelectorAll("input[name='symptom']:checked");
+  const symptomsList = Array.from(symptomCbs).map(cb => cb.value);
+  
+  // 收集用藥
+  const medCb = document.getElementById("tmy-med-relaxant");
+  const medication = medCb && medCb.checked ? "muscle_relaxant" : "";
+
+  // 如果什麼都沒勾，代表今天沒症狀
+  if (symptomsList.length === 0 && !medication) {
+    alert("未勾選任何項目，未新增紀錄。");
+    modal.close();
+    return;
+  }
+
+  const newLog = {
+    date: today,
+    symptoms: symptomsList.join(","),
+    medication: medication
+  };
+
+  // 1. 儲存到本地快取
+  saveTmySymptomsLog(newLog);
+  modal.close();
+  
+  // 2. 重新渲染儀表板刷新近30天計數
+  if (typeof renderDashboard === "function") renderDashboard();
+  alert(`📊 顳顎關節症狀已紀錄成功！`);
+
+  // 3. 自動同步寫回試算表
+  try {
+    showSyncStatus("同步中...");
+    const res = await syncWithCloud();
+    if (res && res.success) {
+      showSyncStatus("已同步");
+    } else {
+      showSyncStatus("同步失敗");
+    }
+  } catch (err) {
+    console.error("症狀同步失敗:", err);
+    showSyncStatus("同步出錯");
+  }
+}
 }
