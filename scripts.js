@@ -10,6 +10,7 @@
 const KEY_PAIN_LOGS    = "pain_tracker_pain_logs";
 const KEY_LT_LOGS      = "pain_tracker_long_term_logs";
 const KEY_SPLINT_LOGS  = "pain_tracker_bite_splint_logs";
+const KEY_TMY_LOGS     = "pain_tracker_tmy_symptoms_logs";
 const KEY_SYNC_URL     = "pain_tracker_sync_url";
 const KEY_LAST_SYNCED  = "pain_tracker_last_synced";
 const KEY_API_TOKEN    = "pain_tracker_api_token";
@@ -78,6 +79,29 @@ function saveBiteSplintLog(log) {
   saveBiteSplintLogsLocal(logs);
   return log;
 }
+function getTmySymptomsLogs() {
+  const data = localStorage.getItem("pain_tracker_tmy_symptoms_logs");
+  return data ? JSON.parse(data) : [];
+}
+
+function saveTmySymptomsLogsLocal(logs) {
+  localStorage.setItem("pain_tracker_tmy_symptoms_logs", JSON.stringify(logs));
+}
+
+function saveTmySymptomsLog(log) {
+  const logs = getTmySymptomsLogs();
+  log.lastUpdated = Date.now();
+  if (!log.id) {
+    log.id = generateUUID();
+    logs.push(log);
+  } else {
+    const idx = logs.findIndex(l => l.id === log.id);
+    if (idx !== -1) logs[idx] = { ...logs[idx], ...log };
+    else logs.push(log);
+  }
+  saveTmySymptomsLogsLocal(logs);
+  return log;
+}
 function saveLongTermLog(log) {
   const logs = getLongTermLogs();
   log.lastUpdated = Date.now();
@@ -129,12 +153,14 @@ function saveApiToken(token) {
 async function syncWithCloud() {
   const localPainLogs   = getPainLogs();
   const localLtLogs     = getLongTermLogs();
-  const localSplintLogs = getBiteSplintLogs(); // 抓取本地咬合板紀錄
+  const localSplintLogs = getBiteSplintLogs(); 
+  const localTmyLogs    = getTmySymptomsLogs(); // 抓取本地顳顎關節症狀
 
   const payload = {
     painLogs: localPainLogs,
     longTermLogs: localLtLogs,
-    biteSplintLogs: localSplintLogs // 打包帶走
+    biteSplintLogs: localSplintLogs,
+    tmySymptomsLogs: localTmyLogs // 打包帶走症狀
   };
 
   // 1. 若處於 Google Apps Script 託管環境，採用 google.script.run 原生連線 (免設網址)
@@ -145,7 +171,8 @@ async function syncWithCloud() {
           if (result && result.status === "success") {
             savePainLogsLocal(result.painLogs || []);
             saveLongTermLogsLocal(result.longTermLogs || []);
-            saveBiteSplintLogsLocal(result.biteSplintLogs || []); // 同步存回本地
+            saveBiteSplintLogsLocal(result.biteSplintLogs || []);
+            saveTmySymptomsLogsLocal(result.tmySymptomsLogs || []); 
             localStorage.setItem(KEY_LAST_SYNCED, Date.now().toString());
             resolve({
               success: true,
@@ -188,6 +215,7 @@ async function syncWithCloud() {
       savePainLogsLocal(result.painLogs || []);
       saveLongTermLogsLocal(result.longTermLogs || []);
       saveBiteSplintLogsLocal(result.biteSplintLogs || []);
+      saveTmySymptomsLogsLocal(result.tmySymptomsLogs || []); 
       localStorage.setItem(KEY_LAST_SYNCED, Date.now().toString());
       return {
         success: true,
