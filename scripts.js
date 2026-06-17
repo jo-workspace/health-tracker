@@ -872,7 +872,7 @@ function renderLongTermItems() {
       <div class="lt-card-body">
         <div class="lt-info-row">
           <span class="lt-info-label">追蹤詳情</span>
-          <span class="lt-info-value">起始: ${formatDateOnly(log.date)}${sizeStr}${clinicInfo}</span>
+          <span class="lt-info-value">${formatDateOnly(log.date)}${sizeStr}${clinicInfo}</span>
         </div>
         ${log.nextCheckupDate ? `
         <div class="lt-info-row" style="background: rgba(232, 180, 184, 0.15); padding: 4px 8px; border-radius: 4px; margin-top: 4px;display: block; width: 100%;">
@@ -1167,7 +1167,7 @@ function renderHistory() {
         if (log.sizeDepth)  sizeStr += `×${log.sizeDepth}`;
         sizeStr += " mm";
       }
-      const clinicInfo = log.hospital || log.doctor ? ` | 就醫: ${log.hospital} ${log.doctor}` : "";
+      const clinicInfo = log.hospital || log.doctor ? ` | ${log.hospital} ${log.doctor}` : "";
       
       item.innerHTML = `
         <div class="history-item-header">
