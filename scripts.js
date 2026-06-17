@@ -882,7 +882,7 @@ function renderLongTermItems() {
         ` : ""}
         ${log.notes ? `
         <div class="lt-info-row" style="margin-top: 6px; align-items: flex-start;">
-          <span class="lt-info-label">備忘備註</span>
+          <span class="lt-info-label">備註</span>
           <span class="lt-info-value" style="white-space: pre-wrap; background: #f9f9f9; padding: 6px; border-radius: 4px; display: block; width: 100%;">${escapeHTML(log.notes)}</span>
         </div>
         ` : ""}
