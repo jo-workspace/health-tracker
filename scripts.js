@@ -27,7 +27,29 @@ function getPainLogs() {
 function savePainLogsLocal(logs) {
   localStorage.setItem(KEY_PAIN_LOGS, JSON.stringify(logs));
 }
+function getTmySymptomsLogs() {
+  const data = localStorage.getItem("pain_tracker_tmy_symptoms_logs");
+  return data ? JSON.parse(data) : [];
+}
 
+function saveTmySymptomsLogsLocal(logs) {
+  localStorage.setItem("pain_tracker_tmy_symptoms_logs", JSON.stringify(logs));
+}
+
+function saveTmySymptomsLog(log) {
+  const logs = getTmySymptomsLogs();
+  log.lastUpdated = Date.now();
+  if (!log.id) {
+    log.id = generateUUID();
+    logs.push(log);
+  } else {
+    const idx = logs.findIndex(l => l.id === log.id);
+    if (idx !== -1) logs[idx] = { ...logs[idx], ...log };
+    else logs.push(log);
+  }
+  saveTmySymptomsLogsLocal(logs);
+  return log;
+}
 function savePainLog(log) {
   const logs = getPainLogs();
   log.lastUpdated = Date.now();
@@ -77,29 +99,6 @@ function saveBiteSplintLog(log) {
     else logs.push(log);
   }
   saveBiteSplintLogsLocal(logs);
-  return log;
-}
-function getTmySymptomsLogs() {
-  const data = localStorage.getItem("pain_tracker_tmy_symptoms_logs");
-  return data ? JSON.parse(data) : [];
-}
-
-function saveTmySymptomsLogsLocal(logs) {
-  localStorage.setItem("pain_tracker_tmy_symptoms_logs", JSON.stringify(logs));
-}
-
-function saveTmySymptomsLog(log) {
-  const logs = getTmySymptomsLogs();
-  log.lastUpdated = Date.now();
-  if (!log.id) {
-    log.id = generateUUID();
-    logs.push(log);
-  } else {
-    const idx = logs.findIndex(l => l.id === log.id);
-    if (idx !== -1) logs[idx] = { ...logs[idx], ...log };
-    else logs.push(log);
-  }
-  saveTmySymptomsLogsLocal(logs);
   return log;
 }
 function saveLongTermLog(log) {
