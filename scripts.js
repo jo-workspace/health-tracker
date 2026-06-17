@@ -1013,9 +1013,13 @@ function renderHistory() {
   const historyListContainer = document.getElementById("history-list");
   const painLogs  = getPainLogs();
   const ltLogs    = getLongTermLogs();
+  const splintLogs = getBiteSplintLogs();
   const query     = document.getElementById("history-search").value.trim().toLowerCase();
   
   let allRecords = [];
+  splintLogs.forEach(log => {
+    allRecords.push({ ...log, type: "splint", itemName: "顳顎關節-咬合板" });
+  });
   if (currentFilter === "all" || currentFilter === "pain") {
     painLogs.forEach(log => { allRecords.push({ ...log, type: "pain" }); });
   }
@@ -1025,6 +1029,28 @@ function renderHistory() {
   
   if (query) {
     allRecords = allRecords.filter(log => {
+      if (log.type === "splint") {
+      const card = document.createElement("div");
+      card.className = "history-card lt-card"; 
+      card.innerHTML = `
+        <div class="lt-card-header" style="background: rgba(59,130,246,0.08);">
+          <span class="lt-title">🦷 顳顎關節-咬合板</span>
+          <span class="lt-size-badge" style="background: var(--success); color: white;">已配戴</span>
+        </div>
+        <div class="lt-card-body">
+          <div class="lt-info-row">
+            <span class="lt-info-label">配戴日期</span>
+            <span class="lt-info-value">${formatDateOnly(log.date)}</span>
+          </div>
+          <div class="lt-info-row">
+            <span class="lt-info-label">紀錄類型</span>
+            <span class="lt-info-value" style="color: var(--text-muted);">臨床追蹤自我打卡</span>
+          </div>
+        </div>
+      `;
+      historyListContainer.appendChild(card);
+      return; // 渲染完直接跳過，不走下面原本的長期追蹤或疼痛流程
+    }
       if (log.type === "pain") {
         return (
           (log.location && log.location.toLowerCase().includes(query)) ||
