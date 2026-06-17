@@ -796,49 +796,17 @@ window.markPainRecovered = function(id) {
 };
 
 function renderLongTermItems() {
-  const ltListContainer = document.getElementById("long-term-list");
-  // --- 💡 咬合板每週平均計算機開始 ---
-  const splintLogs = getBiteSplintLogs();
-  let currentWeekCount = 0;
-  let lastWeekCount = 0;
-  let yearlyWeeklyAvg = 0;
-
-  if (splintLogs.length > 0) {
-    const now = new Date();
-    const weeklyCounts = {};
-    
-    splintLogs.forEach(log => {
-      const date = new Date(log.date.substring(0, 10));
-      const oneJan = new Date(date.getFullYear(), 0, 1);
-      const numberOfDays = Math.floor((date - oneJan) / (24 * 60 * 60 * 1000));
-      const weekNumber = Math.ceil((date.getDay() + 1 + numberOfDays) / 7);
-      const weekKey = `${date.getFullYear()}-W${weekNumber}`;
-      weeklyCounts[weekKey] = (weeklyCounts[weekKey] || 0) + 1;
-    });
-
-    const currentOneJan = new Date(now.getFullYear(), 0, 1);
-    const currentNumDays = Math.floor((now - currentOneJan) / (24 * 60 * 60 * 1000));
-    const currentWeekNum = Math.ceil((now.getDay() + 1 + currentNumDays) / 7);
-    
-    const currentWeekKey = `${now.getFullYear()}-W${currentWeekNum}`;
-    const lastWeekKey = `${now.getFullYear()}-W${currentWeekNum - 1}`;
-
-    currentWeekCount = weeklyCounts[currentWeekKey] || 0;
-    lastWeekCount = weeklyCounts[lastWeekKey] || 0;
-
-    const totalWeeksRecorded = Object.keys(weeklyCounts).length;
-    yearlyWeeklyAvg = totalWeeksRecorded > 0 ? (splintLogs.length / totalWeeksRecorded).toFixed(1) : 0;
-  }
-  // --- 💡 咬合板每週平均計算機結束 ---
-  const logs = getLongTermLogs();
+  const container = document.getElementById("longterm-list");
+  if (!container) return;
   
-  if (logs.length === 0) {
-    ltListContainer.innerHTML = `
+  const items = getLongTermLogs();
+  if (items.length === 0) {
+    container.innerHTML = `
       <div class="empty-state">
-        <i data-lucide="calendar"></i>
+        <i data-lucide="package-open"></i>
         <div class="empty-state-text">
-          <h4>無長期追蹤項目</h4>
-          <p>點擊上方「長期追蹤」新增如乳房腺瘤等定期回診項目。</p>
+          <h4>尚無長期追蹤項目</h4>
+          <p>點擊上方「新增追蹤項目」開始記錄您的就醫或物品追蹤。</p>
         </div>
       </div>
     `;
@@ -846,121 +814,98 @@ function renderLongTermItems() {
     return;
   }
   
-  const sortedLogs = [...logs].sort((a, b) => new Date(b.date) - new Date(a.date));
-  const latestItemsMap = new Map();
-  sortedLogs.forEach(log => {
-    if (!latestItemsMap.has(log.itemName)) {
-      latestItemsMap.set(log.itemName, log);
-    }
-  });
+  // 🔄 先在外面把顳顎關節近 30 天的統計數據算好，避免在字串內解析出錯
+  const tmyLogs = getTmySymptomsLogs ? getTmySymptomsLogs() : [];
+  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+  const recentLogs = tmyLogs.filter(l => new Date(l.date).getTime() >= thirtyDaysAgo);
   
-  ltListContainer.innerHTML = "";
-  latestItemsMap.forEach(log => {
+  let symptomCount = 0;
+  let medCount = 0;
+  recentLogs.forEach(l => {
+    if (l.symptoms) symptomCount += l.symptoms.split(',').filter(Boolean).length;
+    if (l.medication && l.medication.includes('muscle_relaxant')) medCount++;
+  });
+
+  // 🔄 咬合板的統計數據
+  const splintLogs = getBiteSplintLogs ? getBiteSplintLogs() : [];
+  const currentWeekLogs = splintLogs.filter(log => isCurrentWeek(new Date(log.date)));
+  const lastWeekLogs = splintLogs.filter(log => isLastWeek(new Date(log.date)));
+  const currentweekCount = currentWeekLogs.length;
+  const lastweekCount = lastWeekLogs.length;
+  const yearlyWeeklyAvg = calculateYearlyWeeklyAverage(splintLogs);
+
+  container.innerHTML = "";
+  
+  items.forEach(log => {
     const card = document.createElement("div");
-    card.className = "lt-card";
+    card.className = "history-card lt-card";
     
     let sizeStr = "";
-      if (log.sizeWidth) {
-        sizeStr = `${log.sizeWidth}`;
-        if (log.sizeHeight) sizeStr += ` × ${log.sizeHeight}`;
-        if (log.sizeDepth) sizeStr += ` × ${log.sizeDepth}`;
-        sizeStr += " mm";
-      }
-    
-    let nextCheckupHtml = "";
-    if (log.nextCheckupDate) {
-      // 統一換成標準日期物件計算天數，不帶任何時間雜訊
-      const nextDate = new Date(log.nextCheckupDate.substring(0, 10));
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const diffDays = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
-      if (diffDays < 0) {
-  nextCheckupHtml = `
-    <div class="lt-next-checkup" style="background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.2)">
-      <span>回診預約：${log.nextCheckupDate.substring(0, 10)}</span>
-      <span class="countdown-badge countdown-urgent">已逾期 ${Math.abs(diffDays)} 天</span>
-    </div>`;
-      } else if (diffDays === 0) {
-        nextCheckupHtml = `
-          <div class="lt-next-checkup" style="background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.2)">
-            <span>回診預約：${log.nextCheckupDate.substring(0, 10)}</span>
-            <span class="countdown-badge" style="color:var(--warning)">今天回診！</span>
-          </div>`;
-      } else {
-        nextCheckupHtml = `
-          <div class="lt-next-checkup">
-            <span>回診預約：${log.nextCheckupDate.substring(0, 10)}</span>
-            <span class="countdown-badge">剩餘 ${diffDays} 天</span>
-          </div>`;
-      }
+    if (log.sizeWidth) {
+      sizeStr = ` | 尺寸: ${log.sizeWidth}`;
+      if (log.sizeHeight) sizeStr += `×${log.sizeHeight}`;
+      if (log.sizeDepth)  sizeStr += `×${log.sizeDepth}`;
+      sizeStr += " mm";
     }
+    
+    const clinicInfo = log.hospital || log.doctor ? ` | 就醫: ${log.hospital} ${log.doctor}` : "";
     
     card.innerHTML = `
       <div class="lt-card-header">
-          <span class="lt-title">${escapeHTML(log.itemName)}</span>
-          ${sizeStr ? `<span class="lt-size-badge">${sizeStr}</span>` : ""}
-        </div>
+        <span class="lt-title">📦 ${escapeHTML(log.itemName)}</span>
+        <span class="lt-size-badge" style="background: var(--primary-light); color: var(--primary); font-weight: 500;">
+          更新於：${formatTimeAgo(log.lastUpdated)}
+        </span>
+      </div>
       <div class="lt-card-body">
         <div class="lt-info-row">
-          <span class="lt-info-label">上次檢查</span>
-          <span class="lt-info-value">${formatDateOnly(log.date)}</span>
+          <span class="lt-info-label">追蹤詳情</span>
+          <span class="lt-info-value">起始: ${formatDateOnly(log.date)}${sizeStr}${clinicInfo}</span>
         </div>
-        ${log.itemName === "顳顎關節" ? `
-          <div class="splint-stats-box" style="margin-top:12px; padding:10px; background:rgba(59,130,246,0.05); border-left:4px solid var(--primary); border-radius:4px;">
-              <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-                <span>🦷 咬合板臨床追蹤</span>
-                <button onclick="recordBiteSplintAction()" style="padding:2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">記配戴</button>
-              </div>
-              <div style="font-size:0.85rem; color:var(--text-muted); display:flex; gap:15px;">
-                <span>本週：<strong style="color:var(--primary)">${currentweekCount}</strong> 次</span>
-                <span>上週：<strong>${lastweekCount}</strong> 次</span>
-                <span>年度每週平均：<strong style="color:var(--success)">${yearlyWeeklyAvg}</strong> 次/週</span>
-              </div>
-            </div>
-            
-            <div class="tmy-stats-box" style="margin-top:12px; padding:10px; background:rgba(239,68,68,0.03); border-left:4px solid var(--danger); border-radius:4px;">
-              <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-                <span>📊 顳顎症狀監測 (近30天)</span>
-                <button onclick="openTmySymptomsModal()" style="padding:2px 8px; font-size:0.75rem; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer;">➕ 記症狀</button>
-              </div>
-              <div style="font-size:0.85rem; color:var(--text-muted);">
-                ${(() => {
-                  const tmyLogs = getTmySymptomsLogs();
-                  const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
-                  const recentLogs = tmyLogs.filter(l => new Date(l.date).getTime() >= thirtyDaysAgo);
-                  
-                  let symptomCount = 0;
-                  let medCount = 0;
-                  recentLogs.forEach(l => {
-                    if (l.symptoms) symptomCount += l.symptoms.split(',').filter(Boolean).length;
-                    if (l.medication && l.medication.includes('muscle_relaxant')) medCount++;
-                  });
-                  return `<span>發作次數：<strong style="color:var(--danger)">${symptomCount}</strong> 次</span> <span style="margin-left:15px;">肌肉鬆弛劑：<strong>${medCount}</strong> 次</span>`;
-                })()}
-              </div>
-            </div>
+        ${log.nextCheckupDate ? `
+        <div class="lt-info-row" style="background: rgba(245,158,11,0.05); padding: 4px 8px; border-radius: 4px; margin-top: 4px;">
+          <span class="lt-info-label" style="color: #d97706; font-weight: 500;">📅 下次預約</span>
+          <span class="lt-info-value" style="color: #d97706; font-weight: bold;">${formatDateOnly(log.nextCheckupDate)}</span>
+        </div>
         ` : ""}
-        ${log.hospital || log.doctor ? `
-          <div class="lt-info-row">
-            <span class="lt-info-label">就醫資訊</span>
-            <span class="lt-info-value">${escapeHTML(log.hospital)} ${escapeHTML(log.doctor)}</span>
-          </div>` : ""}
         ${log.notes ? `
-          <div class="lt-info-row">
-            <span class="lt-info-label">檢查筆記</span>
-            <span class="lt-info-value">${escapeHTML(log.notes)}</span>
-          </div>` : ""}
+        <div class="lt-info-row" style="margin-top: 6px; align-items: flex-start;">
+          <span class="lt-info-label">備忘備註</span>
+          <span class="lt-info-value" style="white-space: pre-wrap; background: #f9f9f9; padding: 6px; border-radius: 4px; display: block; width: 100%;">${escapeHTML(log.notes)}</span>
+        </div>
+        ` : ""}
+        
+        ${log.itemName === "顳顎關節" ? `
+        <div class="splint-stats-box" style="margin-top:12px; padding:10px; background:rgba(59,130,246,0.05); border-left:4px solid var(--primary); border-radius:4px;">
+          <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span>🦷 咬合板臨床追蹤</span>
+            <button onclick="recordBiteSplintAction()" style="padding:2px 8px; font-size:0.75rem; background:var(--primary); color:white; border:none; border-radius:4px; cursor:pointer;">記配戴</button>
+          </div>
+          <div style="font-size:0.85rem; color:var(--text-muted); display:flex; gap:15px;">
+            <span>本週：<strong style="color:var(--primary)">${currentweekCount}</strong> 次</span>
+            <span>上週：<strong>${lastweekCount}</strong> 次</span>
+            <span>年度每週平均：<strong style="color:var(--success)">${yearlyWeeklyAvg}</strong> 次/週</span>
+          </div>
+        </div>
+        
+        <div class="tmy-stats-box" style="margin-top:12px; padding:10px; background:rgba(239,68,68,0.03); border-left:4px solid var(--danger); border-radius:4px;">
+          <div style="font-weight:bold; font-size:0.9rem; color:var(--text-main); margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span>📊 顳顎症狀監測 (近30天)</span>
+            <button onclick="openTmySymptomsModal()" style="padding:2px 8px; font-size:0.75rem; background:var(--danger); color:white; border:none; border-radius:4px; cursor:pointer;">➕ 記症狀</button>
+          </div>
+          <div style="font-size:0.85rem; color:var(--text-muted);">
+            <span>發作次數：<strong style="color:var(--danger)">${symptomCount}</strong> 次</span>
+            <span style="margin-left:15px;">肌肉鬆弛劑：<strong>${medCount}</strong> 次</span>
+          </div>
+        </div>
+        ` : ""}
       </div>
-      ${nextCheckupHtml}
-      <div class="pain-card-footer" style="padding-top:8px;">
-        <span class="pain-time-muted"></span>
-        <button class="card-btn card-btn-edit" onclick="prefillLongtermModal('${escapeHTML(log.itemName)}')">
-          <i data-lucide="plus-circle" style="width:14px; height:14px;"></i> 新增回診記錄
-        </button>
+      <div class="lt-card-actions" style="display: flex; justify-content: flex-end; gap: 8px; padding: 8px 16px; background: #fbfbfb; border-top: 1px solid #f3f3f3; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px;">
+        <button class="history-action-btn" onclick="editRecord('longterm', '${log.id}')" title="編輯"><i data-lucide="edit-3" style="width:14px; height:14px;"></i></button>
+        <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('longterm', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
       </div>
     `;
-    ltListContainer.appendChild(card);
+    container.appendChild(card);
   });
   lucide.createIcons();
 }
