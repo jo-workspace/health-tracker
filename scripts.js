@@ -787,21 +787,21 @@ function renderLongTermItems() {
       const diffDays = Math.ceil((nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
       
       if (diffDays < 0) {
-        nextCheckupHtml = `
-          <div class="lt-next-checkup" style="background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.2)">
-            <span>回診預約：${log.nextCheckupDate}</span>
-            <span class="countdown-badge countdown-urgent">已逾期 ${Math.abs(diffDays)} 天</span>
-          </div>`;
+  nextCheckupHtml = `
+    <div class="lt-next-checkup" style="background:rgba(239,68,68,0.08); border-color:rgba(239,68,68,0.2)">
+      <span>回診預約：${log.nextCheckupDate.substring(0, 10)}</span>
+      <span class="countdown-badge countdown-urgent">已逾期 ${Math.abs(diffDays)} 天</span>
+    </div>`;
       } else if (diffDays === 0) {
         nextCheckupHtml = `
           <div class="lt-next-checkup" style="background:rgba(245,158,11,0.08); border-color:rgba(245,158,11,0.2)">
-            <span>回診預約：${log.nextCheckupDate}</span>
+            <span>回診預約：${log.nextCheckupDate.substring(0, 10)}</span>
             <span class="countdown-badge" style="color:var(--warning)">今天回診！</span>
           </div>`;
       } else {
         nextCheckupHtml = `
           <div class="lt-next-checkup">
-            <span>回診預約：${log.nextCheckupDate}</span>
+            <span>回診預約：${log.nextCheckupDate.substring(0, 10)}</span>
             <span class="countdown-badge">剩餘 ${diffDays} 天</span>
           </div>`;
       }
