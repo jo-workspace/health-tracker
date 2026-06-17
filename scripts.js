@@ -1025,30 +1025,27 @@ function renderHistory() {
 
   let allRecords = [];
 
-  // 1. 如果分類是「全部」或「疼痛日誌」，才匯入疼痛資料
-  if (currentFilter === "all" || currentFilter === "pain") {
-    painLogs.forEach(log => {
-      if (log.status !== "deleted") {
-        allRecords.push({ ...log, type: "pain" });
-      }
-    });
+  // 1. 統一把所有合法的歷史資料倒進總陣列
+  painLogs.forEach(log => {
+    if (log.status !== "deleted") {
+      allRecords.push({ ...log, type: "pain" });
+    }
+  });
+
+  ltLogs.forEach(log => {
+    allRecords.push({ ...log, type: "longterm" });
+  });
+
+  splintLogs.forEach(log => {
+    allRecords.push({ ...log, type: "splint", itemName: "顳顎關節-咬合板" });
+  });
+
+  // 2. 依據目前選取的標籤 (Filter) 進行第一輪篩選
+  if (currentFilter !== "all") {
+    allRecords = allRecords.filter(log => log.type === currentFilter);
   }
 
-  // 2. 如果分類是「全部」或「長期追蹤」，才匯入長期追蹤資料
-  if (currentFilter === "all" || currentFilter === "longterm") {
-    ltLogs.forEach(log => {
-      allRecords.push({ ...log, type: "longterm" });
-    });
-  }
-
-  // 3. 如果分類是「全部」或「咬合板紀錄」，才匯入咬合板資料
-  if (currentFilter === "all" || currentFilter === "splint") {
-    splintLogs.forEach(log => {
-      allRecords.push({ ...log, type: "splint", itemName: "顳顎關節-咬合板" });
-    });
-  }
-
-  // 關鍵字搜尋過濾功能
+  // 3. 關鍵字搜尋過濾功能 (搜尋框有字才過濾)
   if (query) {
     allRecords = allRecords.filter(log => {
       if (log.type === "pain") {
@@ -1145,7 +1142,6 @@ function renderHistory() {
         </div>
       `;
     } else if (log.type === "splint") {
-      // ✨ 這裡就是咬合板在獨立第四個分頁會顯示的精美卡片！
       item.innerHTML = `
         <div class="history-item-header" style="background: rgba(59,130,246,0.05);">
           <span class="history-type-badge" style="background: rgba(59,130,246,0.1); color: var(--primary);">咬合板紀錄</span>
