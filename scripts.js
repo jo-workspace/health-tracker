@@ -2128,14 +2128,8 @@ window.initBiometrics = function() {
       const feeling = document.getElementById("sleep-feeling").value;
       const notes = document.getElementById("sleep-notes").value.trim();
       
-      // 計算淺眠
-      let lightSleep = null;
-      if (deepSleep !== null && remSleep !== null) {
-        lightSleep = sleepDuration - deepSleep - remSleep;
-      }
-      
       saveSleepLog({
-        id, date, type: "night", bedtime, wakeupTime, sleepDuration, hrv, deepSleep, remSleep, lightSleep, stress, feeling, notes
+        id, date, type: "night", bedtime, wakeupTime, sleepDuration, hrv, deepSleep, remSleep, stress, feeling, notes
       });
       
       document.getElementById("modal-sleep").close();
@@ -2945,6 +2939,13 @@ window.importSleepScreenshot = async function(event) {
   lucide.createIcons();
   
   try {
+    // 💡 根據睡眠記錄表單上所設定的日期作為基準日期，以避免 AI 誤判年份 (例如 2024)
+    const selectedDate = document.getElementById("sleep-date").value || new Date().toISOString().split("T")[0];
+    const selDateObj = new Date(selectedDate);
+    const yesterdayObj = new Date(selDateObj);
+    yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+    const yesterdayStr = yesterdayObj.toISOString().split("T")[0];
+
     const promptParts = [
       {
         text: `You are an expert sleep data parser. Analyze these sleep metrics screenshots (usually in Chinese from Garmin, Apple Health, or other wearables).
@@ -2955,8 +2956,8 @@ Synthesize all the uploaded screenshots and extract the following fields if they
 3. "deepSleep": Deep sleep duration in hours (as a float, e.g. 1.77 for 1時46分).
 4. "remSleep": REM sleep duration in hours (as a float, e.g. 0.33 for 20分).
 5. "hrv": HRV value in ms (as an integer, e.g. 55).
-6. "bedtime": Estimated bedtime in "YYYY-MM-DDTHH:MM" format (default date to yesterday's date, e.g. if today is 2026-06-28, bedtime is 2026-06-27T23:00).
-7. "wakeupTime": Estimated wakeup time in "YYYY-MM-DDTHH:MM" format (default date to today's date).
+6. "bedtime": Estimated bedtime in strict "YYYY-MM-DDTHH:MM" format (e.g. 2026-06-26T22:15). Default the date part to: ${yesterdayStr} unless the image explicitly shows a different date. Hours and minutes must be 2-digit (padded with zero if needed, e.g. 05:08, NOT 5:8).
+7. "wakeupTime": Estimated wakeup time in strict "YYYY-MM-DDTHH:MM" format (e.g. 2026-06-27T06:23). Default the date part to: ${selectedDate} unless the image explicitly shows a different date. Hours and minutes must be 2-digit (padded with zero if needed, e.g. 05:08, NOT 5:8).
 8. "notes": Any brief description of sleep patterns if visible.
 
 Format your output ONLY as a valid JSON object. Do not include markdown code block formatting (e.g., do not wrap in \`\`\`json).
@@ -2967,8 +2968,8 @@ Example:
   "deepSleep": 1.77,
   "remSleep": 0.33,
   "hrv": null,
-  "bedtime": "2026-06-27T23:15",
-  "wakeupTime": "2026-06-28T06:23",
+  "bedtime": "${yesterdayStr}T23:15",
+  "wakeupTime": "${selectedDate}T06:23",
   "notes": "Garmin screenshot import"
 }`
       }

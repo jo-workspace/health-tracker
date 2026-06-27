@@ -59,7 +59,7 @@ function syncDataFromClient(payload) {
     },
     sleepLogs: {
       name: "SleepLogs",
-      headers: ["id", "date", "type", "bedtime", "fallAsleepTime", "wakeupTime", "sleepDuration", "deepSleep", "remSleep", "lightSleep", "stress", "feeling", "hrv", "notes", "lastUpdated"]
+      headers: ["id", "date", "type", "bedtime", "fallAsleepTime", "wakeupTime", "sleepDuration", "deepSleep", "remSleep", "stress", "feeling", "hrv", "notes", "lastUpdated"]
     },
     rainbowDietLogs: {
       name: "RainbowDietLogs",
@@ -74,13 +74,13 @@ function syncDataFromClient(payload) {
     var config = sheetsConfig[key];
     var sheet = ss.getSheetByName(config.name);
     
-    // 💡 自動偵測：若工作表不存在，則自動新增工作表並寫入表頭欄位
+    // 💡 自動偵測：若工作表不存在，則自動新增工作表
     if (!sheet) {
       sheet = ss.insertSheet(config.name);
-      sheet.appendRow(config.headers);
     }
     
-    var serverLogs = getLogsFromSheet(sheet, config.headers);
+    // 💡 動態偵測：讀取伺服器實際所擁有的舊資料
+    var serverLogs = getLogsFromSheet(sheet);
     var clientLogs = payload[key] || [];
     
     // 進行雙向資料合併：以 id 為主鍵，lastUpdated 最新者獲勝
@@ -110,7 +110,7 @@ function syncDataFromClient(payload) {
       return item.status !== "deleted";
     });
     
-    // 將合併後的最新資料寫回工作表
+    // 將合併後的最新資料寫回工作表，並在此處自動重寫/覆蓋表頭列以自我修復與對齊
     saveLogsToSheet(sheet, sheetList, config.headers);
     
     // 回傳包含已刪除標記的完整合併清單給前端，以正確同步本機快取
@@ -121,18 +121,21 @@ function syncDataFromClient(payload) {
 }
 
 /**
- * 自工作表讀取資料並轉換為 JSON 物件陣列
+ * 自工作表讀取資料並轉換為 JSON 物件陣列 (動態讀取表頭，以便資料結構升級時能對齊欄位)
  */
-function getLogsFromSheet(sheet, headers) {
+function getLogsFromSheet(sheet) {
   var lastRow = sheet.getLastRow();
-  if (lastRow <= 1) return []; // 只有表頭，無資料
+  var lastCol = sheet.getLastColumn();
+  if (lastRow <= 1 || lastCol <= 0) return []; // 只有表頭，無資料
   
-  var dataRange = sheet.getRange(2, 1, lastRow - 1, headers.length);
+  var actualHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var dataRange = sheet.getRange(2, 1, lastRow - 1, lastCol);
   var values = dataRange.getValues();
   
   return values.map(function(row) {
     var obj = {};
-    headers.forEach(function(header, idx) {
+    actualHeaders.forEach(function(header, idx) {
+      if (!header) return;
       var val = row[idx];
       // 處理日期格式轉為 ISO String
       if (val instanceof Date) {
@@ -150,9 +153,17 @@ function getLogsFromSheet(sheet, headers) {
 }
 
 /**
- * 將 JSON 物件陣列完全覆寫寫回工作表
+ * 將 JSON 物件陣列完全覆寫寫回工作表 (包含對齊並覆蓋更新第一行表頭)
  */
 function saveLogsToSheet(sheet, logs, headers) {
+  var lastCol = sheet.getLastColumn();
+  // 💡 自動修復：覆蓋寫入最新定義的欄位表頭
+  if (lastCol > 0) {
+    sheet.getRange(1, 1, 1, lastCol).clearContent();
+  }
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  
+  // 清除舊資料
   var lastRow = sheet.getLastRow();
   if (lastRow > 1) {
     sheet.getRange(2, 1, lastRow - 1, headers.length).clearContent();
