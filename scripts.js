@@ -2114,6 +2114,58 @@ window.initBiometrics = function() {
     wakeupInput.addEventListener("change", autoCalcSleepHours);
   }
 
+  const sleepDateInput = document.getElementById("sleep-date");
+  if (sleepDateInput) {
+    sleepDateInput.addEventListener("change", (e) => {
+      const selectedDate = e.target.value;
+      if (!selectedDate) return;
+      
+      const logs = getSleepLogs().filter(l => l.status !== "deleted");
+      const existingLog = logs.find(l => l.date.substring(0, 10) === selectedDate && l.type === "night");
+      
+      if (existingLog) {
+        // 💡 如果選擇的日期已有主睡眠紀錄，自動載入帶入資料
+        document.getElementById("sleep-id").value = existingLog.id;
+        document.getElementById("sleep-bedtime").value = existingLog.bedtime || "";
+        document.getElementById("sleep-wakeup").value = existingLog.wakeupTime || "";
+        document.getElementById("sleep-duration").value = existingLog.sleepDuration ? Number(existingLog.sleepDuration).toFixed(1) : "";
+        document.getElementById("sleep-hrv").value = existingLog.hrv || "";
+        document.getElementById("sleep-deep").value = existingLog.deepSleep ? Number(existingLog.deepSleep).toFixed(1) : "";
+        document.getElementById("sleep-rem").value = existingLog.remSleep ? Number(existingLog.remSleep).toFixed(1) : "";
+        
+        const stressVal = (existingLog.stress !== undefined && existingLog.stress !== null) ? existingLog.stress : 20;
+        document.getElementById("sleep-stress").value = stressVal;
+        document.getElementById("sleep-stress-value").textContent = stressVal;
+        
+        const feelingVal = existingLog.feeling || "normal";
+        selectSleepFeeling(feelingVal);
+        
+        document.getElementById("sleep-notes").value = existingLog.notes || "";
+      } else {
+        // 💡 如果選擇的日期沒有紀錄，重置回該日期的預設時間與預設值
+        document.getElementById("sleep-id").value = "";
+        
+        const selDateObj = new Date(selectedDate);
+        const yesterdayObj = new Date(selDateObj);
+        yesterdayObj.setDate(yesterdayObj.getDate() - 1);
+        const yesterdayStr = yesterdayObj.toISOString().split("T")[0];
+        
+        document.getElementById("sleep-bedtime").value = `${yesterdayStr}T23:00`;
+        document.getElementById("sleep-wakeup").value = `${selectedDate}T07:00`;
+        document.getElementById("sleep-duration").value = "8.0";
+        document.getElementById("sleep-hrv").value = "";
+        document.getElementById("sleep-deep").value = "";
+        document.getElementById("sleep-rem").value = "";
+        
+        document.getElementById("sleep-stress").value = 20;
+        document.getElementById("sleep-stress-value").textContent = "20";
+        
+        selectSleepFeeling("normal");
+        document.getElementById("sleep-notes").value = "";
+      }
+    });
+  }
+
   // B. 儲存夜間主睡眠
   if (formSleep) {
     formSleep.addEventListener("submit", (e) => {
