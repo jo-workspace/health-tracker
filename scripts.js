@@ -415,22 +415,7 @@ function initNavigation() {
 // =====================================================================
 
 function enableClickOutsideToClose(dialog) {
-  if (!dialog) return;
-  dialog.addEventListener("click", (e) => {
-    // 💡 只有當點擊的 target 就是 dialog 本體（即點擊在 backdrop 遮罩上）時才關閉對話框，防範隱藏 file input 點擊事件冒泡
-    if (e.target !== dialog) return;
-    
-    const rect = dialog.getBoundingClientRect();
-    const isInDialog = (
-      e.clientX >= rect.left &&
-      e.clientX <= rect.right &&
-      e.clientY >= rect.top &&
-      e.clientY <= rect.bottom
-    );
-    if (!isInDialog) {
-      dialog.close();
-    }
-  });
+  // 💡 已由全域事件代理接管，此處留空以相容舊有的程式碼呼叫
 }
 
 window.selectSleepFeeling = function(value) {
@@ -491,18 +476,34 @@ function initModals() {
     lucide.createIcons();
   });
 
-  // 關閉 Modal 的通用按鈕
-  document.querySelectorAll(".btn-close-modal").forEach(btn => {
-    btn.addEventListener("click", (e) => {
+  // 💡 全域事件代理：關閉 Modal 的按鈕監聽 (防範任何初始化或動態加載問題)
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-close-modal");
+    if (btn) {
       e.preventDefault();
       const targetId = btn.getAttribute("data-target");
-      document.getElementById(targetId).close();
-    });
+      if (targetId) {
+        const modal = document.getElementById(targetId);
+        if (modal) modal.close();
+      }
+    }
   });
 
-  // 💡 點擊背景（空白處）自動關閉
-  document.querySelectorAll("dialog").forEach(dialog => {
-    enableClickOutsideToClose(dialog);
+  // 💡 全域事件代理：點擊對話框外部背景 (backdrop) 自動關閉
+  document.addEventListener("click", (e) => {
+    if (e.target.tagName === "DIALOG") {
+      const dialog = e.target;
+      const rect = dialog.getBoundingClientRect();
+      const isInDialog = (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      );
+      if (!isInDialog) {
+        dialog.close();
+      }
+    }
   });
 
   // 疼痛指數滑桿連動
@@ -2830,6 +2831,9 @@ function calculateRollingHrvBaseline(targetDateStr, allLogs) {
 
 // 10. 開啟 HRV 統計詳情彈窗
 window.openHrvDetailModal = function() {
+  // 💡 先開啟彈窗，確保無數據時也能開窗顯示提示訊息，而不是點擊無反應
+  document.getElementById("modal-hrv-detail").showModal();
+  
   const allLogs = getSleepLogs().filter(l => l.status !== "deleted");
   const nightLogsWithHrv = allLogs.filter(l => l.type === "night" && l.hrv);
   
@@ -2942,8 +2946,9 @@ window.openHrvDetailModal = function() {
     
     const minVal = Math.min(...yValues);
     const maxVal = Math.max(...yValues);
-    const chartMin = Math.max(0, Math.floor(minVal - 8));
-    const chartMax = Math.ceil(maxVal + 8);
+    // 💡 y 軸根據資料範圍動態調整 (縮小 padding 至 2 ms) 以最大化圖表佔比，防範過多空白
+    const chartMin = Math.max(0, Math.floor(minVal - 2));
+    const chartMax = Math.ceil(maxVal + 2);
     
     // SVG 面板設定 (420 x 140)
     const svgWidth = 420;
@@ -3035,7 +3040,6 @@ window.openHrvDetailModal = function() {
     container.innerHTML = svgHtml;
   }
   
-  document.getElementById("modal-hrv-detail").showModal();
   lucide.createIcons();
 };
 
