@@ -417,7 +417,9 @@ function initNavigation() {
 function enableClickOutsideToClose(dialog) {
   if (!dialog) return;
   dialog.addEventListener("click", (e) => {
-    // 💡 點擊背景（dialog 本體）但不是 dialog 內部的 box 時關閉對話框
+    // 💡 只有當點擊的 target 就是 dialog 本體（即點擊在 backdrop 遮罩上）時才關閉對話框，防範隱藏 file input 點擊事件冒泡
+    if (e.target !== dialog) return;
+    
     const rect = dialog.getBoundingClientRect();
     const isInDialog = (
       e.clientX >= rect.left &&
@@ -2209,11 +2211,20 @@ window.openNewSleepForm = function() {
   const detailModal = document.getElementById("modal-sleep-detail");
   if (detailModal && detailModal.open) detailModal.close();
   
+  // 💡 防呆：如果今天已經有夜間主睡眠紀錄，則直接呼叫 editRecord 進入編輯模式，防止填寫過的資料被覆蓋重設
+  const todayStr = new Date().toISOString().split("T")[0];
+  const logs = getSleepLogs().filter(l => l.status !== "deleted");
+  const existingLog = logs.find(l => l.date.substring(0, 10) === todayStr && l.type === "night");
+  
+  if (existingLog) {
+    editRecord("sleep", existingLog.id);
+    return;
+  }
+  
   const form = document.getElementById("form-sleep");
   if (form) form.reset();
   document.getElementById("sleep-id").value = "";
   
-  const todayStr = new Date().toISOString().split("T")[0];
   document.getElementById("sleep-date").value = todayStr;
   
   // 預先帶入預設時間 (上床 23:00 - 起床 07:00)
