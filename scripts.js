@@ -2835,11 +2835,12 @@ window.importSleepScreenshot = async function(event) {
     const mimeType = file.type;
     const base64Content = base64Data.split(",")[1];
     
-    // 呼叫 Gemini Vision API (採用輕量且極速的 gemini-1.5-flash)
+    // 呼叫 Gemini Vision API (同時傳入 x-goog-api-key 標頭與 URL 參數以支援新版 AQ. 金鑰驗證)
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
       },
       body: JSON.stringify({
         contents: [
