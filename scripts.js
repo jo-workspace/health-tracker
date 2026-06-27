@@ -2812,8 +2812,8 @@ document.addEventListener("DOMContentLoaded", () => {
 // 📸 Gemini AI 睡眠數據截圖自動辨識填入
 // =====================================================================
 window.importSleepScreenshot = async function(event) {
-  const file = event.target.files[0];
-  if (!file) return;
+  const files = event.target.files;
+  if (!files || files.length === 0) return;
   
   const apiKey = getGeminiKey();
   if (!apiKey) {
@@ -2830,25 +2830,11 @@ window.importSleepScreenshot = async function(event) {
   lucide.createIcons();
   
   try {
-    // 轉 base64
-    const base64Data = await fileToBase64(file);
-    const mimeType = file.type;
-    const base64Content = base64Data.split(",")[1];
-    
-    // 呼叫 Gemini Vision API (採用與 pantry-tracker 相同的 gemini-2.5-flash 與 x-goog-api-key 標頭模式)
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `You are an expert sleep data parser. Analyze this sleep metrics screenshot (usually in Chinese from Garmin, Apple Health, or other wearables).
-Extract the following fields if they appear in the image:
+    const promptParts = [
+      {
+        text: `You are an expert sleep data parser. Analyze these sleep metrics screenshots (usually in Chinese from Garmin, Apple Health, or other wearables).
+You may receive multiple screenshots belonging to the same sleep session (e.g. one image containing sleep duration and sleep phases, and another image showing bedtime and wakeup times).
+Synthesize all the uploaded screenshots and extract the following fields if they appear in any of the images:
 1. "sleepDuration": Total sleep duration/time in bed in hours (as a float, e.g. 6.38 for 6h 23m. If it lists "持續時間" or "睡眠時間" or "時間" as "6時23分" or "6小時23分", convert to hours like 6.38).
 2. "stress": Average stress level as an integer from 0 to 100 (e.g. 17).
 3. "deepSleep": Deep sleep duration in hours (as a float, e.g. 1.77 for 1時46分).
@@ -2870,14 +2856,35 @@ Example:
   "wakeupTime": "2026-06-28T06:23",
   "notes": "Garmin screenshot import"
 }`
-              },
-              {
-                inlineData: {
-                  mimeType: mimeType,
-                  data: base64Content
-                }
-              }
-            ]
+      }
+    ];
+
+    // 讀取所有選取的檔案並轉換成 Base64 parts
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const base64Data = await fileToBase64(file);
+      const mimeType = file.type;
+      const base64Content = base64Data.split(",")[1];
+      
+      promptParts.push({
+        inlineData: {
+          mimeType: mimeType,
+          data: base64Content
+        }
+      });
+    }
+    
+    // 呼叫 Gemini Vision API (採用與 pantry-tracker 相同的 gemini-2.5-flash 與 x-goog-api-key 標頭模式)
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": apiKey
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: promptParts
           }
         ]
       })
