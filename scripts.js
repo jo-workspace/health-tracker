@@ -17,6 +17,15 @@ const KEY_CUSTOM_PLANT_COLORS = "pain_tracker_custom_plant_colors";
 const KEY_SYNC_URL     = "pain_tracker_sync_url";
 const KEY_LAST_SYNCED  = "pain_tracker_last_synced";
 const KEY_API_TOKEN    = "pain_tracker_api_token";
+const KEY_GEMINI_KEY   = "pain_tracker_gemini_key";
+
+function getGeminiKey() {
+  return localStorage.getItem(KEY_GEMINI_KEY) || "";
+}
+
+function saveGeminiKey(key) {
+  localStorage.setItem(KEY_GEMINI_KEY, key.trim());
+}
 
 function generateUUID() {
   return 'uuid-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11);
@@ -215,6 +224,7 @@ function clearLocalData() {
   localStorage.removeItem(KEY_SLEEP_LOGS);
   localStorage.removeItem(KEY_DIET_LOGS);
   localStorage.removeItem(KEY_CUSTOM_PLANT_COLORS);
+  localStorage.removeItem(KEY_GEMINI_KEY);
 }
 
 function getApiToken() {
@@ -706,6 +716,7 @@ function initSettingsModal() {
   btnSettingsGear.addEventListener("click", () => {
     document.getElementById("settings-sync-url").value   = getSyncUrl();
     document.getElementById("settings-api-token").value  = getApiToken();
+    document.getElementById("settings-gemini-key").value = getGeminiKey();
     updateSettingsSyncStatus();
     modalSettings.showModal();
     lucide.createIcons();
@@ -716,6 +727,7 @@ function initSettingsModal() {
     e.preventDefault();
     saveSyncUrl(document.getElementById("settings-sync-url").value);
     saveApiToken(document.getElementById("settings-api-token").value);
+    saveGeminiKey(document.getElementById("settings-gemini-key").value);
     modalSettings.close();
     updateSyncStatusHeader();
     if (getSyncUrl()) triggerBackgroundSync();
@@ -726,6 +738,7 @@ function initSettingsModal() {
     // 先暫存目前輸入值
     saveSyncUrl(document.getElementById("settings-sync-url").value);
     saveApiToken(document.getElementById("settings-api-token").value);
+    saveGeminiKey(document.getElementById("settings-gemini-key").value);
 
     const icon = btnManualSync.querySelector("i");
     btnManualSync.disabled = true;
@@ -1470,8 +1483,8 @@ window.editRecord = function(type, id) {
       document.getElementById("sleep-hrv").value = log.hrv || "";
       document.getElementById("sleep-deep").value = log.deepSleep || "";
       document.getElementById("sleep-rem").value = log.remSleep || "";
-      document.getElementById("sleep-stress").value = log.stress || 3;
-      document.getElementById("sleep-stress-value").textContent = log.stress || 3;
+      document.getElementById("sleep-stress").value = (log.stress !== undefined && log.stress !== null) ? log.stress : 20;
+      document.getElementById("sleep-stress-value").textContent = (log.stress !== undefined && log.stress !== null) ? log.stress : 20;
       document.getElementById("sleep-notes").value = log.notes || "";
       document.getElementById("modal-sleep").showModal();
     }
@@ -2161,8 +2174,8 @@ window.openNewSleepForm = function() {
   document.getElementById("sleep-bedtime").value = `${yStr}T23:00`;
   document.getElementById("sleep-wakeup").value = `${todayStr}T07:00`;
   document.getElementById("sleep-duration").value = "8.0";
-  document.getElementById("sleep-stress-value").textContent = "3";
-  document.getElementById("sleep-stress").value = 3;
+  document.getElementById("sleep-stress-value").textContent = "20";
+  document.getElementById("sleep-stress").value = 20;
   
   document.getElementById("modal-sleep").showModal();
   lucide.createIcons();
@@ -2794,3 +2807,141 @@ document.addEventListener("DOMContentLoaded", () => {
     initSleepTimeAutoCalculator();
   }
 });
+
+// =====================================================================
+// 📸 Gemini AI 睡眠數據截圖自動辨識填入
+// =====================================================================
+window.importSleepScreenshot = async function(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const apiKey = getGeminiKey();
+  if (!apiKey) {
+    alert("❌ 請先點擊首頁右上角設定按鈕（齒輪），填入您的 Gemini API Key！");
+    event.target.value = "";
+    return;
+  }
+  
+  // 顯示加載指示器
+  const uploadBtn = event.target.previousElementSibling;
+  const originalText = uploadBtn.innerHTML;
+  uploadBtn.disabled = true;
+  uploadBtn.innerHTML = `<i data-lucide="loader" style="width:14px; height:14px; display:inline-block; animation: spin 1s linear infinite;"></i> 分析中...`;
+  lucide.createIcons();
+  
+  try {
+    // 轉 base64
+    const base64Data = await fileToBase64(file);
+    const mimeType = file.type;
+    const base64Content = base64Data.split(",")[1];
+    
+    // 呼叫 Gemini Vision API (採用輕量且極速的 gemini-1.5-flash)
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: `You are an expert sleep data parser. Analyze this sleep metrics screenshot (usually in Chinese from Garmin, Apple Health, or other wearables).
+Extract the following fields if they appear in the image:
+1. "sleepDuration": Total sleep duration/time in bed in hours (as a float, e.g. 6.38 for 6h 23m. If it lists "持續時間" or "睡眠時間" or "時間" as "6時23分" or "6小時23分", convert to hours like 6.38).
+2. "stress": Average stress level as an integer from 0 to 100 (e.g. 17).
+3. "deepSleep": Deep sleep duration in hours (as a float, e.g. 1.77 for 1時46分).
+4. "remSleep": REM sleep duration in hours (as a float, e.g. 0.33 for 20分).
+5. "hrv": HRV value in ms (as an integer, e.g. 55).
+6. "bedtime": Estimated bedtime in "YYYY-MM-DDTHH:MM" format (default date to yesterday's date, e.g. if today is 2026-06-28, bedtime is 2026-06-27T23:00).
+7. "wakeupTime": Estimated wakeup time in "YYYY-MM-DDTHH:MM" format (default date to today's date).
+8. "notes": Any brief description of sleep patterns if visible.
+
+Format your output ONLY as a valid JSON object. Do not include markdown code block formatting (e.g., do not wrap in \`\`\`json).
+Example:
+{
+  "sleepDuration": 6.38,
+  "stress": 17,
+  "deepSleep": 1.77,
+  "remSleep": 0.33,
+  "hrv": null,
+  "bedtime": "2026-06-27T23:15",
+  "wakeupTime": "2026-06-28T06:23",
+  "notes": "Garmin screenshot import"
+}`
+              },
+              {
+                inlineData: {
+                  mimeType: mimeType,
+                  data: base64Content
+                }
+              }
+            ]
+          }
+        ]
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Gemini API 請求失敗，狀態碼：${response.status}`);
+    }
+    
+    const result = await response.json();
+    const textResponse = result.candidates[0].content.parts[0].text;
+    
+    // 去除 model 可能輸出的 markdown ```json 包裝
+    let cleanJsonStr = textResponse.trim();
+    if (cleanJsonStr.startsWith("```")) {
+      cleanJsonStr = cleanJsonStr.replace(/^```json\s*/i, "").replace(/```$/, "").trim();
+    }
+    
+    const parsedData = JSON.parse(cleanJsonStr);
+    
+    // 自動填入睡眠表單欄位
+    if (parsedData.sleepDuration) {
+      document.getElementById("sleep-duration").value = parsedData.sleepDuration;
+    }
+    if (parsedData.stress !== undefined && parsedData.stress !== null) {
+      document.getElementById("sleep-stress").value = parsedData.stress;
+      document.getElementById("sleep-stress-value").textContent = parsedData.stress;
+    }
+    if (parsedData.deepSleep) {
+      document.getElementById("sleep-deep").value = parsedData.deepSleep;
+    }
+    if (parsedData.remSleep) {
+      document.getElementById("sleep-rem").value = parsedData.remSleep;
+    }
+    if (parsedData.hrv) {
+      document.getElementById("sleep-hrv").value = parsedData.hrv;
+    }
+    if (parsedData.bedtime) {
+      document.getElementById("sleep-bedtime").value = parsedData.bedtime;
+    }
+    if (parsedData.wakeupTime) {
+      document.getElementById("sleep-wakeup").value = parsedData.wakeupTime;
+    }
+    if (parsedData.notes) {
+      document.getElementById("sleep-notes").value = parsedData.notes;
+    }
+    
+    alert("🎉 睡眠截圖解讀成功，數據已自動填入欄位！");
+    
+  } catch (err) {
+    console.error("截圖解讀出錯:", err);
+    alert("❌ 截圖解析失敗，請確認 API Key 是否正確，或手動填入數據。錯誤原因：" + err.message);
+  } finally {
+    uploadBtn.disabled = false;
+    uploadBtn.innerHTML = originalText;
+    event.target.value = ""; // 重設上傳欄位
+    lucide.createIcons();
+  }
+};
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+}

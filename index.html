@@ -467,6 +467,12 @@
           <p class="form-hint">若在 Code.gs 中設有驗證邏輯，請填入對應的 Token。</p>
         </div>
 
+        <div class="form-group">
+          <label for="settings-gemini-key">Gemini API Key <span style="font-weight:400; color:var(--text-dim);">（選填，解讀睡眠截圖用）</span></label>
+          <input type="password" id="settings-gemini-key" placeholder="AI-xxxxxxxxxxxxxxxx">
+          <p class="form-hint">填入 Google Gemini API Key 以啟用「睡眠數據截圖自動辨識填入」功能。</p>
+        </div>
+
         <div id="settings-sync-status" class="settings-sync-status"></div>
 
         <div class="form-actions">
@@ -489,6 +495,17 @@
         <input type="hidden" id="sleep-id">
         <input type="hidden" id="sleep-type" value="night">
         
+        <div class="form-group" style="background: rgba(124, 58, 237, 0.05); padding: 12px; border-radius: 8px; border: 1px dashed rgba(124, 58, 237, 0.3); display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+          <div style="flex: 1; padding-right: 8px;">
+            <h4 style="margin: 0; font-size: 0.9rem; color: #7c3aed; display: flex; align-items: center; gap: 4px;"><i data-lucide="sparkles" style="width: 14px; height: 14px;"></i> 穿戴裝置截圖自動填入</h4>
+            <p style="margin: 2px 0 0 0; font-size: 0.72rem; color: var(--text-dim);">支援 Garmin、Apple Health、小米等睡眠數據截圖</p>
+          </div>
+          <button type="button" class="btn" style="background: #7c3aed; color: #fff; padding: 6px 12px; font-size: 0.8rem; border-radius: 6px; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px;" onclick="document.getElementById('sleep-screenshot-input').click();">
+            <i data-lucide="image" style="width: 14px; height: 14px;"></i> 選擇截圖
+          </button>
+          <input type="file" id="sleep-screenshot-input" accept="image/*" style="display: none;" onchange="importSleepScreenshot(event);">
+        </div>
+
         <div class="form-group">
           <label for="sleep-date">起床日期</label>
           <input type="date" id="sleep-date" required>
@@ -529,10 +546,10 @@
 
         <div class="form-group">
           <div class="label-with-value">
-            <label for="sleep-stress">今日壓力指數 (1-10)</label>
-            <span id="sleep-stress-value" class="slider-badge" style="background:#7f8e81;">3</span>
+            <label for="sleep-stress">今日平均壓力指數 (0-100)</label>
+            <span id="sleep-stress-value" class="slider-badge" style="background:#7f8e81;">20</span>
           </div>
-          <input type="range" id="sleep-stress" min="1" max="10" value="3" step="1" oninput="document.getElementById('sleep-stress-value').textContent = this.value;">
+          <input type="range" id="sleep-stress" min="0" max="100" value="20" step="1" oninput="document.getElementById('sleep-stress-value').textContent = this.value;">
         </div>
 
         <div class="form-group">
