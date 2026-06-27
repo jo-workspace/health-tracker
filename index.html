@@ -61,6 +61,135 @@
         </button>
       </div>
 
+      <!-- 今日生活指標區 -->
+      <section class="dashboard-section">
+        <div class="section-title">
+          <i data-lucide="sparkles"></i>
+          <h2>今日生活指標</h2>
+        </div>
+        <div class="habits-grid">
+          <!-- 睡眠卡片 -->
+          <div class="habit-card" id="card-sleep" onclick="openSleepDetailModal();">
+            <div class="habit-card-header">
+              <span class="habit-card-title"><i data-lucide="moon" class="icon-sleep"></i>睡眠追蹤</span>
+              <span id="badge-sleep-goal" class="badge-gold" style="display:none;">🔋 滿電 7h+</span>
+            </div>
+            <div class="habit-card-body">
+              <div class="habit-card-value-group">
+                <span id="val-sleep-hours" class="habit-card-value">-</span>
+                <span class="habit-card-unit">小時</span>
+              </div>
+              <!-- 堆疊進度條 -->
+              <div class="sleep-phases-container" id="sleep-phases-bar-container">
+                <div class="progress-stacked" id="sleep-phases-bar">
+                  <div class="progress-segment segment-deep" style="width: 0%" title="深眠"></div>
+                  <div class="progress-segment segment-rem" style="width: 0%" title="REM"></div>
+                  <div class="progress-segment segment-light" style="width: 0%" title="淺眠"></div>
+                </div>
+                <div class="sleep-phase-labels">
+                  <span class="sleep-phase-label"><span class="dot-indicator dot-deep"></span>深眠 <span id="lbl-deep-hours">0h</span></span>
+                  <span class="sleep-phase-label"><span class="dot-indicator dot-rem"></span>REM <span id="lbl-rem-hours">0h</span></span>
+                  <span class="sleep-phase-label"><span class="dot-indicator dot-light"></span>淺眠 <span id="lbl-light-hours">0h</span></span>
+                </div>
+              </div>
+              <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:2px;">
+                <span id="val-sleep-nap">小睡：-</span>
+                <span id="val-sleep-stress">壓力：-</span>
+              </div>
+            </div>
+            <div style="display:flex; justify-content:flex-end; margin-top:4px;">
+              <button id="btn-quick-nap" class="card-btn" style="padding: 4px 8px; font-size:0.7rem;" onclick="event.stopPropagation(); openQuickNapModal();">
+                <i data-lucide="plus" style="width:12px; height:12px;"></i> 記小睡
+              </button>
+            </div>
+          </div>
+
+          <!-- HRV 卡片 -->
+          <div class="habit-card" id="card-hrv" onclick="openHrvDetailModal();">
+            <div class="habit-card-header">
+              <span class="habit-card-title"><i data-lucide="activity" class="icon-hrv"></i>HRV 指標</span>
+              <button id="btn-quick-hrv" class="card-btn" style="padding: 4px 8px; font-size:0.7rem;" onclick="event.stopPropagation(); openQuickHrvModal();">更新</button>
+            </div>
+            <div class="habit-card-body">
+              <div class="habit-card-value-group">
+                <span id="val-hrv" class="habit-card-value">-</span>
+                <span class="habit-card-unit">ms</span>
+              </div>
+              <p id="lbl-hrv-trend" style="font-size: 0.72rem; color: var(--text-muted); margin-top: 4px;">與前 7 天平均相比：-</p>
+            </div>
+          </div>
+
+          <!-- 彩虹飲食卡片 -->
+          <div class="habit-card habit-card-full" id="card-diet" onclick="openDietDetailModal();">
+            <div class="habit-card-header">
+              <span class="habit-card-title"><i data-lucide="salad" class="icon-diet"></i>彩虹飲食 & 植物多樣性</span>
+              <span id="diet-achievement-badge" class="badge-gold" style="display:none;">👑 彩虹精靈</span>
+            </div>
+            <div class="habit-card-body" onclick="event.stopPropagation();">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="habit-card-value-group">
+                  <span id="val-diet-count" class="habit-card-value">0</span>
+                  <span class="habit-card-unit">/ 30 種植物 (本週)</span>
+                </div>
+                <span id="lbl-diet-achievement" style="font-size:0.75rem; font-weight:600; color:var(--primary);">🌱 萌芽階段</span>
+              </div>
+              <!-- 彩虹進度條 -->
+              <div class="rainbow-progress-bar">
+                <div class="rainbow-progress-fill" id="diet-progress-fill" style="width: 0%"></div>
+              </div>
+              <!-- 六色圓圈狀態 -->
+              <div class="rainbow-indicators">
+                <div class="rainbow-dot-indicator rb-red inactive" title="紅色">紅</div>
+                <div class="rainbow-dot-indicator rb-orange-yellow inactive" title="橘黃">橘黃</div>
+                <div class="rainbow-dot-indicator rb-green inactive" title="綠色">綠</div>
+                <div class="rainbow-dot-indicator rb-blue-purple inactive" title="藍紫">藍紫</div>
+                <div class="rainbow-dot-indicator rb-white-brown inactive" title="白褐">白褐</div>
+                <div class="rainbow-dot-indicator rb-black inactive" title="黑色">黑</div>
+              </div>
+              <!-- 快速輸入食材 -->
+              <form id="form-quick-diet" class="diet-quick-input-container" onsubmit="event.preventDefault(); submitQuickDiet();" style="padding:0;">
+                <input type="text" id="input-quick-diet" list="diet-suggestions" placeholder="輸入今日植物食材，如：蘋果、綠花椰菜、糙米" autocomplete="off" required>
+                <datalist id="diet-suggestions">
+                  <option value="番茄">
+                  <option value="蘋果">
+                  <option value="胡蘿蔔">
+                  <option value="南瓜">
+                  <option value="香蕉">
+                  <option value="地瓜">
+                  <option value="菠菜">
+                  <option value="綠花椰菜">
+                  <option value="小黃瓜">
+                  <option value="高麗菜">
+                  <option value="藍莓">
+                  <option value="茄子">
+                  <option value="葡萄">
+                  <option value="洋蔥">
+                  <option value="大蒜">
+                  <option value="白蘿蔔">
+                  <option value="蘑菇">
+                  <option value="黑木耳">
+                  <option value="黑芝麻">
+                  <option value="黑豆">
+                </datalist>
+                <button type="submit" class="btn btn-primary" style="padding: 4px 12px; font-size:0.75rem;">+ 記錄</button>
+              </form>
+              <!-- 未知植物顏色指派面板 -->
+              <div id="quick-diet-color-picker" class="plant-color-picker" style="display:none;">
+                <div class="plant-color-picker-title">🎨 未知植物「<span id="lbl-unknown-plant-name"></span>」，請問它是什麼顏色？</div>
+                <div class="plant-color-options">
+                  <button type="button" class="plant-color-btn rb-red" onclick="assignColorToUnknown('red')">紅</button>
+                  <button type="button" class="plant-color-btn rb-orange-yellow" onclick="assignColorToUnknown('orange-yellow')">橘黃</button>
+                  <button type="button" class="plant-color-btn rb-green" onclick="assignColorToUnknown('green')">綠</button>
+                  <button type="button" class="plant-color-btn rb-blue-purple" onclick="assignColorToUnknown('blue-purple')">藍紫</button>
+                  <button type="button" class="plant-color-btn rb-white-brown" style="color:#555;" onclick="assignColorToUnknown('white-brown')">白褐</button>
+                  <button type="button" class="plant-color-btn rb-black" onclick="assignColorToUnknown('black')">黑</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- 現存痛點區 -->
       <section class="dashboard-section">
         <div class="section-title">
@@ -348,6 +477,242 @@
           <button type="submit" class="btn btn-primary">儲存</button>
         </div>
       </form>
+    </dialog>
+
+    <!-- 5. 睡眠記錄表單 Modal -->
+    <dialog id="modal-sleep" class="app-modal">
+      <div class="modal-header">
+        <h2><i data-lucide="moon"></i> 記錄昨晚睡眠</h2>
+        <button class="btn-close-modal" data-target="modal-sleep"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-sleep" method="dialog">
+        <input type="hidden" id="sleep-id">
+        <input type="hidden" id="sleep-type" value="night">
+        
+        <div class="form-group">
+          <label for="sleep-date">起床日期</label>
+          <input type="date" id="sleep-date" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="sleep-bedtime">上床時間 (上床睡覺)</label>
+            <input type="datetime-local" id="sleep-bedtime" required>
+          </div>
+          <div class="form-group">
+            <label for="sleep-wakeup">起床時間 (睜眼起床)</label>
+            <input type="datetime-local" id="sleep-wakeup" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="sleep-duration">睡眠時數 (小時)</label>
+            <input type="number" id="sleep-duration" step="0.1" min="0" max="24" placeholder="例如：7.5" required>
+          </div>
+          <div class="form-group">
+            <label for="sleep-hrv">HRV 心率變異值 (ms)</label>
+            <input type="number" id="sleep-hrv" min="0" placeholder="例如：55">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="sleep-deep">深眠時數 (小時)</label>
+            <input type="number" id="sleep-deep" step="0.1" min="0" max="24" placeholder="例如：1.5">
+          </div>
+          <div class="form-group">
+            <label for="sleep-rem">REM 睡眠時數 (小時)</label>
+            <input type="number" id="sleep-rem" step="0.1" min="0" max="24" placeholder="例如：1.8">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <div class="label-with-value">
+            <label for="sleep-stress">今日壓力指數 (1-10)</label>
+            <span id="sleep-stress-value" class="slider-badge" style="background:#7f8e81;">3</span>
+          </div>
+          <input type="range" id="sleep-stress" min="1" max="10" value="3" step="1" oninput="document.getElementById('sleep-stress-value').textContent = this.value;">
+        </div>
+
+        <div class="form-group">
+          <label for="sleep-notes">睡眠狀況備註</label>
+          <textarea id="sleep-notes" rows="2" placeholder="例如：昨晚稍微有蚊子，半夜醒來一次..."></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary btn-close-modal" data-target="modal-sleep">取消</button>
+          <button type="submit" class="btn btn-primary">儲存睡眠</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 6. 小睡記錄表單 Modal -->
+    <dialog id="modal-nap" class="app-modal modal-small">
+      <div class="modal-header">
+        <h3><i data-lucide="sun"></i> 記錄白日小睡</h3>
+        <button class="btn-close-modal" data-target="modal-nap"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-nap" method="dialog">
+        <input type="hidden" id="nap-id">
+        <input type="hidden" id="nap-type" value="nap">
+        <div class="form-group">
+          <label for="nap-date">小睡日期</label>
+          <input type="date" id="nap-date" required>
+        </div>
+        <div class="form-group">
+          <label for="nap-duration">小睡分鐘數</label>
+          <input type="number" id="nap-duration" min="5" max="300" placeholder="例如：30" required>
+        </div>
+        <div class="form-group">
+          <label for="nap-notes">備註</label>
+          <textarea id="nap-notes" rows="2" placeholder="午休補眠、重訓後小睡..."></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary btn-close-modal" data-target="modal-nap">取消</button>
+          <button type="submit" class="btn btn-primary">儲存小睡</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 7. HRV 快速記錄 Modal -->
+    <dialog id="modal-quick-hrv-dialog" class="app-modal modal-small">
+      <div class="modal-header">
+        <h3><i data-lucide="heart-pulse"></i> 快速記錄今日 HRV</h3>
+        <button class="btn-close-modal" data-target="modal-quick-hrv-dialog"><i data-lucide="x"></i></button>
+      </div>
+      <form id="form-quick-hrv-form" method="dialog">
+        <div class="form-group">
+          <label for="quick-hrv-date">日期</label>
+          <input type="date" id="quick-hrv-date" required>
+        </div>
+        <div class="form-group">
+          <label for="quick-hrv-val">HRV 值 (ms)</label>
+          <input type="number" id="quick-hrv-val" min="5" max="300" placeholder="例如：65" required>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary btn-close-modal" data-target="modal-quick-hrv-dialog">取消</button>
+          <button type="submit" class="btn btn-primary">儲存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <!-- 8. 睡眠詳情與趨勢 Modal -->
+    <dialog id="modal-sleep-detail" class="app-modal">
+      <div class="modal-header">
+        <h2><i data-lucide="moon"></i> 睡眠趨勢與統計</h2>
+        <button class="btn-close-modal" data-target="modal-sleep-detail"><i data-lucide="x"></i></button>
+      </div>
+      <div style="padding:20px;">
+        <!-- 成就獎勵與連續達標 -->
+        <div class="achievement-title-box" id="sleep-achievement-box">
+          <span style="font-weight:bold; color:#aa9275;">🏆 睡眠目標進度</span>
+          <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="sleep-streak-text">🔥 連續達標：0 天</span>
+            <span style="font-size:0.75rem; color:var(--text-muted);">每日目標：7 小時</span>
+          </div>
+        </div>
+
+        <!-- 數據快照 -->
+        <div class="chart-summary-info">
+          <div class="chart-summary-item">
+            <span id="avg-sleep-main" class="chart-summary-val">-</span>
+            <span class="chart-summary-lbl">主睡眠日平均</span>
+          </div>
+          <div class="chart-summary-item" style="border-left:1px solid var(--card-border); border-right:1px solid var(--card-border);">
+            <span id="avg-sleep-nap" class="chart-summary-val">-</span>
+            <span class="chart-summary-lbl">小睡日平均</span>
+          </div>
+          <div class="chart-summary-item">
+            <span id="avg-sleep-total" class="chart-summary-val">-</span>
+            <span class="chart-summary-lbl">睡眠總日平均</span>
+          </div>
+        </div>
+
+        <h4 style="font-size:0.85rem; margin-bottom:8px;">近 7 天睡眠時數柱狀圖</h4>
+        <!-- CSS 柱狀圖 -->
+        <div class="chart-container" id="sleep-chart-container">
+          <!-- 柱子由 JS 動態生成 -->
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+          <span style="font-size:0.75rem; color:var(--text-dim);"><span class="dot-indicator dot-deep"></span> 主睡眠 &nbsp; <span class="dot-indicator dot-light"></span> 小睡</span>
+          <button class="btn btn-primary" style="padding:6px 12px; font-size:0.75rem;" onclick="openNewSleepForm();">
+            <i data-lucide="plus" style="width:14px; height:14px;"></i> 新增主睡眠紀錄
+          </button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- 9. HRV 詳情與趨勢 Modal -->
+    <dialog id="modal-hrv-detail" class="app-modal">
+      <div class="modal-header">
+        <h2><i data-lucide="heart-pulse"></i> HRV 趨勢與統計</h2>
+        <button class="btn-close-modal" data-target="modal-hrv-detail"><i data-lucide="x"></i></button>
+      </div>
+      <div style="padding:20px;">
+        <div class="chart-summary-info">
+          <div class="chart-summary-item">
+            <span id="avg-hrv-7day" class="chart-summary-val">-</span>
+            <span class="chart-summary-lbl">近 7 天 HRV 平均</span>
+          </div>
+          <div class="chart-summary-item" style="border-left:1px solid var(--card-border);">
+            <span id="avg-hrv-status" class="chart-summary-val">-</span>
+            <span class="chart-summary-lbl">最新狀態</span>
+          </div>
+        </div>
+
+        <h4 style="font-size:0.85rem; margin-bottom:8px;">近 7 天 HRV 歷史紀錄</h4>
+        <div class="chart-container" id="hrv-chart-container">
+          <!-- 柱子由 JS 動態生成 -->
+        </div>
+      </div>
+    </dialog>
+
+    <!-- 10. 彩虹飲食詳情與食材清單 Modal -->
+    <dialog id="modal-diet-detail" class="app-modal">
+      <div class="modal-header">
+        <h2><i data-lucide="salad"></i> 彩虹飲食統計</h2>
+        <button class="btn-close-modal" data-target="modal-diet-detail"><i data-lucide="x"></i></button>
+      </div>
+      <div style="padding:20px;">
+        <!-- 成就獎勵與連續達標 -->
+        <div class="achievement-title-box" id="diet-achievement-box">
+          <span style="font-weight:bold; color:#aa9275;">🏆 本週成就進度</span>
+          <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span id="diet-badge-text">🌱 萌芽階段 (0 / 30 種)</span>
+            <span style="font-size:0.75rem; color:var(--text-muted);">每週目標：30 種植物</span>
+          </div>
+          <!-- 歷週達標皇冠 -->
+          <div class="weekly-crowns-container" id="diet-crowns-container">
+            <!-- 皇冠圖示由 JS 動態生成 -->
+          </div>
+        </div>
+
+        <h4 style="font-size:0.9rem; margin-bottom:12px; border-bottom: 1px solid var(--card-border); padding-bottom:6px;">本週已吃植物清單 (依顏色分類)</h4>
+        
+        <div style="max-height: 250px; overflow-y: auto; padding-right:4px;" id="diet-categorized-list">
+          <!-- 植物分類清單由 JS 動態生成 -->
+        </div>
+      </div>
+    </dialog>
+
+    <!-- 11. 自動睡眠提醒彈窗 Modal -->
+    <dialog id="modal-auto-sleep" class="app-modal modal-small">
+      <div class="modal-header">
+        <h3>🔔 睡眠記錄提醒</h3>
+        <button class="btn-close-modal" data-target="modal-auto-sleep"><i data-lucide="x"></i></button>
+      </div>
+      <div style="padding:20px; font-size:0.85rem; line-height:1.5;">
+        <p>偵測到您昨天（<span id="lbl-auto-sleep-yesterday-date"></span>）尚未填寫夜間主睡眠紀錄。</p>
+        <p style="margin-top:8px; color:var(--text-muted);">健康的睡眠是活力的基石，建議立即花費 30 秒登錄昨晚狀況！</p>
+        
+        <div class="form-actions" style="margin-top:20px; padding-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="markAutoSleepNoRecord();">當日無紀錄</button>
+          <button type="button" class="btn btn-secondary btn-close-modal" data-target="modal-auto-sleep">稍後</button>
+          <button type="button" class="btn btn-primary" onclick="triggerAutoSleepLogging();">填寫睡眠</button>
+        </div>
+      </div>
     </dialog>
   </div>
 

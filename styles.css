@@ -1153,19 +1153,6 @@ form {
 }
 
 /* 對於安全區域凹槽的適應 (例如 iPhone Dynamic Island / Notch) */
-@media (max-width: 480px) {
-  .app-header {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-  .app-content {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-  .action-card {
-    padding: 12px;
-    gap: 8px;
-  }
   .action-icon {
     width: 32px;
     height: 32px;
@@ -1177,3 +1164,487 @@ form {
     font-size: 0.7rem;
   }
 }
+
+/* ==========================================================================
+   12. 每日生理指標與生活習慣追蹤樣式 (Sleep, HRV, Diet)
+   ========================================================================== */
+
+.habits-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 480px) {
+  .habits-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .habit-card-full {
+    grid-column: span 2;
+  }
+}
+
+.habit-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  padding: 16px;
+  backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.habit-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--card-border-active);
+  background: var(--card-bg-hover);
+}
+
+.habit-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.habit-card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--text-color);
+}
+
+.habit-card-title i {
+  width: 18px;
+  height: 18px;
+}
+
+.habit-card-title .icon-sleep { color: #6f7f99; }
+.habit-card-title .icon-hrv { color: #7f8e81; }
+.habit-card-title .icon-diet { color: #c4998e; }
+
+.habit-card-value-group {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.habit-card-value {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.habit-card-unit {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.habit-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 睡眠進度條與階段 */
+.sleep-phases-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progress-stacked {
+  display: flex;
+  height: 8px;
+  border-radius: 9999px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.progress-stacked.goal-achieved {
+  box-shadow: 0 0 6px rgba(193, 168, 139, 0.35);
+  animation: glowPulse 2s infinite ease-in-out;
+}
+
+.progress-segment {
+  height: 100%;
+  transition: width 0.5s ease;
+}
+
+.segment-deep  { background-color: #6f7f99; } /* 深眠: 莫蘭迪深藍 */
+.segment-rem   { background-color: #ba9fa4; } /* REM: 莫蘭迪紫紅 */
+.segment-light { background-color: #c5d0c3; } /* 淺眠: 莫蘭迪青灰 */
+
+.sleep-phase-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.sleep-phase-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dot-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot-deep  { background-color: #6f7f99; }
+.dot-rem   { background-color: #ba9fa4; }
+.dot-light { background-color: #c5d0c3; }
+
+/* 達標徽章 */
+.badge-gold {
+  background: linear-gradient(135deg, #c1a88b 0%, #aa9275 100%);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  box-shadow: 0 2px 4px rgba(193, 168, 139, 0.2);
+}
+
+/* 彩虹飲食顏色按鈕/指標 */
+.rainbow-indicators {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.rainbow-dot-indicator {
+  flex: 1;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.4);
+  transition: all 0.3s ease;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* 莫蘭迪彩虹色系 */
+.rb-red { background-color: #c4998e; }
+.rb-orange-yellow { background-color: #c1a88b; }
+.rb-green { background-color: #9ca896; }
+.rb-blue-purple { background-color: #8fa0b5; }
+.rb-white-brown { background-color: #e2ded5; color: rgba(0, 0, 0, 0.2) !important; border-color: rgba(0, 0, 0, 0.1); }
+.rb-black { background-color: #4a4a4a; }
+
+.rainbow-dot-indicator.inactive {
+  opacity: 0.25;
+  filter: grayscale(80%);
+}
+
+.rainbow-dot-indicator.active {
+  opacity: 1;
+  filter: none;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.rb-white-brown.active {
+  color: #555 !important;
+}
+
+/* 彩虹快速輸入框 */
+.diet-quick-input-container {
+  display: flex;
+  gap: 6px;
+  margin-top: 4px;
+  position: relative;
+}
+
+.diet-quick-input-container input {
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  border-radius: 8px;
+}
+
+/* 彩虹進度條 */
+.rainbow-progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.rainbow-progress-fill {
+  height: 100%;
+  background-color: var(--primary);
+  width: 0%;
+  transition: width 0.5s ease, background 0.5s ease;
+}
+
+.rainbow-progress-fill.rainbow-gradient-fill {
+  background: linear-gradient(90deg, #c4998e, #c1a88b, #9ca896, #8fa0b5, #4a4a4a);
+  animation: rainbowGlow 3s infinite alternate;
+}
+
+/* 未知植物顏色指派 */
+.plant-color-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  border: 1px dashed var(--card-border);
+  margin-top: 8px;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.plant-color-picker-title {
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: var(--text-color);
+}
+
+.plant-color-options {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.plant-color-btn {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  transition: transform 0.1s ease;
+}
+
+.plant-color-btn:active {
+  transform: scale(0.95);
+}
+
+/* 圖表與趨勢面板樣式 */
+.chart-summary-info {
+  display: flex;
+  justify-content: space-between;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 12px;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  font-size: 0.8rem;
+}
+
+.chart-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.chart-summary-val {
+  font-size: 1.1rem;
+  font-weight: bold;
+  color: var(--text-color);
+}
+
+.chart-summary-lbl {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.chart-container {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 140px;
+  padding: 16px 8px 8px 8px;
+  border-bottom: 1px solid var(--card-border);
+  margin-bottom: 24px;
+}
+
+.chart-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  height: 100%;
+}
+
+.chart-bar-stacked {
+  width: 16px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px 4px 0 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  overflow: hidden;
+  position: relative;
+}
+
+.chart-bar-segment {
+  width: 100%;
+  transition: height 0.5s ease;
+}
+
+.chart-bar-segment.segment-night {
+  background-color: #6f7f99;
+}
+
+.chart-bar-segment.segment-nap {
+  background-color: #9ca896;
+}
+
+.chart-bar-single {
+  width: 16px;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 4px 4px 0 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.chart-bar-fill {
+  width: 100%;
+  background-color: #7f8e81;
+  transition: height 0.5s ease;
+}
+
+.chart-bar-fill.achieved {
+  background: linear-gradient(to top, #7f8e81, #c1a88b);
+}
+
+.chart-bar-wrapper .chart-label {
+  font-size: 0.6rem;
+  color: var(--text-dim);
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* 歷史彈窗內的清單分色 */
+.diet-list-group {
+  margin-bottom: 12px;
+}
+
+.diet-list-title {
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+
+.diet-list-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-left: 4px;
+}
+
+.diet-item-tag {
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid var(--card-border);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* 歷史記錄過濾樣式 */
+.filter-btn[data-filter="sleep"] {
+  border-bottom: 2px solid transparent;
+}
+.filter-btn[data-filter="sleep"].active {
+  background-color: #6f7f99;
+}
+.filter-btn[data-filter="diet"].active {
+  background-color: #c4998e;
+}
+
+.history-item-sleep {
+  border-left: 4px solid #6f7f99;
+}
+.history-item-diet {
+  border-left: 4px solid #c4998e;
+}
+
+.history-item-sleep .history-type-badge {
+  background: rgba(111, 127, 153, 0.1);
+  color: #6f7f99;
+  border: 1px solid rgba(111, 127, 153, 0.3);
+}
+
+.history-item-diet .history-type-badge {
+  background: rgba(196, 153, 142, 0.1);
+  color: #c4998e;
+  border: 1px solid rgba(196, 153, 142, 0.3);
+}
+
+/* 榮譽皇冠與成就稱號 */
+.achievement-title-box {
+  background: rgba(193, 168, 139, 0.05);
+  border-left: 4px solid #c1a88b;
+  padding: 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  font-size: 0.8rem;
+}
+
+.weekly-crowns-container {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.crown-badge {
+  font-size: 1.1rem;
+  filter: grayscale(100%);
+  opacity: 0.3;
+  transition: all 0.3s ease;
+}
+
+.crown-badge.earned {
+  filter: none;
+  opacity: 1;
+  animation: popScale 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* 其他小動畫 */
+@keyframes glowPulse {
+  0% { box-shadow: 0 0 2px rgba(193, 168, 139, 0.2); }
+  50% { box-shadow: 0 0 10px rgba(193, 168, 139, 0.6); }
+  100% { box-shadow: 0 0 2px rgba(193, 168, 139, 0.2); }
+}
+
+@keyframes rainbowGlow {
+  0% { filter: brightness(1); }
+  100% { filter: brightness(1.2) drop-shadow(0 0 4px rgba(196, 153, 142, 0.4)); }
+}
+
+@keyframes popScale {
+  0% { transform: scale(0.7); }
+  100% { transform: scale(1); }
+}
+

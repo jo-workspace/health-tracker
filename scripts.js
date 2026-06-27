@@ -11,12 +11,82 @@ const KEY_PAIN_LOGS    = "pain_tracker_pain_logs";
 const KEY_LT_LOGS      = "pain_tracker_long_term_logs";
 const KEY_SPLINT_LOGS  = "pain_tracker_bite_splint_logs";
 const KEY_TMY_LOGS     = "pain_tracker_tmy_symptoms_logs";
+const KEY_SLEEP_LOGS   = "pain_tracker_sleep_logs";
+const KEY_DIET_LOGS    = "pain_tracker_rainbow_diet_logs";
+const KEY_CUSTOM_PLANT_COLORS = "pain_tracker_custom_plant_colors";
 const KEY_SYNC_URL     = "pain_tracker_sync_url";
 const KEY_LAST_SYNCED  = "pain_tracker_last_synced";
 const KEY_API_TOKEN    = "pain_tracker_api_token";
 
 function generateUUID() {
   return 'uuid-' + Date.now() + '-' + Math.random().toString(36).substring(2, 11);
+}
+
+function getSleepLogs() {
+  const data = localStorage.getItem(KEY_SLEEP_LOGS);
+  return data ? JSON.parse(data) : [];
+}
+
+function saveSleepLogsLocal(logs) {
+  localStorage.setItem(KEY_SLEEP_LOGS, JSON.stringify(logs));
+}
+
+function saveSleepLog(log) {
+  const logs = getSleepLogs();
+  log.lastUpdated = Date.now();
+  
+  if (!log.id) {
+    log.id = generateUUID();
+    logs.push(log);
+  } else {
+    const idx = logs.findIndex(l => l.id === log.id);
+    if (idx !== -1) {
+      logs[idx] = { ...logs[idx], ...log };
+    } else {
+      logs.push(log);
+    }
+  }
+  saveSleepLogsLocal(logs);
+  return log;
+}
+
+function getRainbowDietLogs() {
+  const data = localStorage.getItem(KEY_DIET_LOGS);
+  return data ? JSON.parse(data) : [];
+}
+
+function saveRainbowDietLogsLocal(logs) {
+  localStorage.setItem(KEY_DIET_LOGS, JSON.stringify(logs));
+}
+
+function saveRainbowDietLog(log) {
+  const logs = getRainbowDietLogs();
+  log.lastUpdated = Date.now();
+  
+  if (!log.id) {
+    log.id = generateUUID();
+    logs.push(log);
+  } else {
+    const idx = logs.findIndex(l => l.id === log.id);
+    if (idx !== -1) {
+      logs[idx] = { ...logs[idx], ...log };
+    } else {
+      logs.push(log);
+    }
+  }
+  saveRainbowDietLogsLocal(logs);
+  return log;
+}
+
+function getCustomPlantColors() {
+  const data = localStorage.getItem(KEY_CUSTOM_PLANT_COLORS);
+  return data ? JSON.parse(data) : {};
+}
+
+function saveCustomPlantColor(plant, color) {
+  const custom = getCustomPlantColors();
+  custom[plant] = color;
+  localStorage.setItem(KEY_CUSTOM_PLANT_COLORS, JSON.stringify(custom));
 }
 
 function getPainLogs() {
@@ -142,6 +212,9 @@ function clearLocalData() {
   localStorage.removeItem(KEY_PAIN_LOGS);
   localStorage.removeItem(KEY_LT_LOGS);
   localStorage.removeItem(KEY_LAST_SYNCED);
+  localStorage.removeItem(KEY_SLEEP_LOGS);
+  localStorage.removeItem(KEY_DIET_LOGS);
+  localStorage.removeItem(KEY_CUSTOM_PLANT_COLORS);
 }
 
 function getApiToken() {
@@ -158,12 +231,16 @@ async function syncWithCloud() {
   const localLtLogs     = getLongTermLogs();
   const localSplintLogs = getBiteSplintLogs(); 
   const localTmyLogs    = getTmySymptomsLogs(); // 抓取本地顳顎關節症狀
+  const localSleepLogs  = getSleepLogs();
+  const localDietLogs   = getRainbowDietLogs();
 
   const payload = {
     painLogs: localPainLogs,
     longTermLogs: localLtLogs,
     biteSplintLogs: localSplintLogs,
-    tmySymptomsLogs: localTmyLogs // 打包帶走症狀
+    tmySymptomsLogs: localTmyLogs,
+    sleepLogs: localSleepLogs,
+    rainbowDietLogs: localDietLogs
   };
 
   // 1. 若處於 Google Apps Script 託管環境，採用 google.script.run 原生連線 (免設網址)
@@ -176,6 +253,8 @@ async function syncWithCloud() {
             saveLongTermLogsLocal(result.longTermLogs || []);
             saveBiteSplintLogsLocal(result.biteSplintLogs || []);
             saveTmySymptomsLogsLocal(result.tmySymptomsLogs || []); 
+            saveSleepLogsLocal(result.sleepLogs || []);
+            saveRainbowDietLogsLocal(result.rainbowDietLogs || []);
             localStorage.setItem(KEY_LAST_SYNCED, Date.now().toString());
             resolve({
               success: true,
@@ -219,6 +298,8 @@ async function syncWithCloud() {
       saveLongTermLogsLocal(result.longTermLogs || []);
       saveBiteSplintLogsLocal(result.biteSplintLogs || []);
       saveTmySymptomsLogsLocal(result.tmySymptomsLogs || []); 
+      saveSleepLogsLocal(result.sleepLogs || []);
+      saveRainbowDietLogsLocal(result.rainbowDietLogs || []);
       localStorage.setItem(KEY_LAST_SYNCED, Date.now().toString());
       return {
         success: true,
@@ -253,6 +334,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadModals().then(() => {
     initModals();
     initSettingsModal();
+    initBiometrics();
     renderApp();
     triggerBackgroundSync(true);
     lucide.createIcons();
@@ -261,6 +343,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn("modals.html fetch 失敗，嘗試使用 inline modals：", err);
     initModals();
     initSettingsModal();
+    initBiometrics();
     renderApp();
     triggerBackgroundSync(true);
     lucide.createIcons();
@@ -699,6 +782,8 @@ function renderDashboard() {
   renderActivePains();
   renderLongTermItems();
   renderStats();
+  renderDailyHabits();
+  checkDailySleepPrompt();
 }
 
 function renderActivePains() {
@@ -1100,6 +1185,8 @@ function renderHistory() {
   const ltLogs     = getLongTermLogs();
   const splintLogs = getBiteSplintLogs();
   const tmyLogs    = getTmySymptomsLogs();
+  const sleepLogs  = getSleepLogs();
+  const dietLogs   = getRainbowDietLogs();
   
   const query = document.getElementById("history-search").value.trim().toLowerCase();
 
@@ -1134,6 +1221,19 @@ function renderHistory() {
     }
   });
 
+  sleepLogs.forEach(log => {
+    if (log.status !== "deleted") {
+      // 記錄原有的睡眠型態 (night/nap)
+      allRecords.push({ ...log, type: "sleep", sleepType: log.type, itemName: log.type === "night" ? "夜間主睡眠" : "白日小睡" });
+    }
+  });
+
+  dietLogs.forEach(log => {
+    if (log.status !== "deleted") {
+      allRecords.push({ ...log, type: "diet", itemName: "彩虹飲食-" + log.plantName });
+    }
+  });
+
   // 2. 依據目前選取的標籤 (Filter) 進行第一輪篩選
   if (currentFilter !== "all") {
     allRecords = allRecords.filter(log => log.type === currentFilter);
@@ -1165,6 +1265,18 @@ function renderHistory() {
           (log.itemName && log.itemName.toLowerCase().includes(query)) ||
           (log.symptoms && log.symptoms.toLowerCase().includes(query)) ||
           (log.date     && log.date.toLowerCase().includes(query))
+        );
+      } else if (log.type === "sleep") {
+        return (
+          (log.itemName && log.itemName.toLowerCase().includes(query)) ||
+          (log.notes    && log.notes.toLowerCase().includes(query)) ||
+          (log.date     && log.date.toLowerCase().includes(query))
+        );
+      } else if (log.type === "diet") {
+        return (
+          (log.plantName && log.plantName.toLowerCase().includes(query)) ||
+          (log.color     && log.color.toLowerCase().includes(query)) ||
+          (log.date      && log.date.toLowerCase().includes(query))
         );
       }
       return false;
@@ -1283,6 +1395,54 @@ function renderHistory() {
           <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('tmy', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
         </div>
       `;
+    } else if (log.type === "sleep") {
+      const isNight = log.sleepType === "night";
+      let sleepDetails = "";
+      if (isNight) {
+        const light = log.lightSleep !== undefined ? log.lightSleep : (log.sleepDuration - (log.deepSleep || 0) - (log.remSleep || 0));
+        sleepDetails = `時數: <strong>${log.sleepDuration} 小時</strong> (深眠: ${log.deepSleep || 0}h, REM: ${log.remSleep || 0}h, 淺眠: ${light.toFixed(1)}h) | HRV: <strong>${log.hrv || '-'} ms</strong> | 壓力: <strong>${log.stress || '-'}</strong>`;
+      } else {
+        sleepDetails = `白日小睡: <strong>${Math.round(log.sleepDuration * 60)} 分鐘</strong>`;
+      }
+      
+      item.innerHTML = `
+        <div class="history-item-header" style="background: rgba(111, 127, 153, 0.05);">
+          <span class="history-type-badge" style="background: rgba(111, 127, 153, 0.1); color: #6f7f99;">睡眠追蹤</span>
+          <span class="history-item-date">${displayDate}</span>
+        </div>
+        <div class="history-item-content">
+          <strong>💤 ${isNight ? '夜間主睡眠' : '白日小睡'}</strong>
+          <div style="margin-top: 4px; color: var(--text-main); font-size: 0.8rem;">${sleepDetails}</div>
+        </div>
+        ${log.notes ? `<div class="history-item-notes">${escapeHTML(log.notes)}</div>` : ""}
+        <div class="history-item-actions">
+          <button class="history-action-btn" onclick="editRecord('sleep', '${log.id}')" title="編輯"><i data-lucide="edit-3" style="width:14px; height:14px;"></i></button>
+          <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('sleep', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
+        </div>
+      `;
+    } else if (log.type === "diet") {
+      const colorMap = {
+        "red": "🔴 紅色",
+        "orange-yellow": "🟡 橘黃",
+        "green": "🟢 綠色",
+        "blue-purple": "🔵 藍紫",
+        "white-brown": "⚪ 白褐",
+        "black": "⚫ 黑色"
+      };
+      const colorText = colorMap[log.color] || log.color;
+      
+      item.innerHTML = `
+        <div class="history-item-header" style="background: rgba(196, 153, 142, 0.05);">
+          <span class="history-type-badge" style="background: rgba(196, 153, 142, 0.1); color: #c4998e;">彩虹飲食</span>
+          <span class="history-item-date">${displayDate}</span>
+        </div>
+        <div class="history-item-content">
+          <strong>🥗 食材：${escapeHTML(log.plantName)}</strong> (${colorText})
+        </div>
+        <div class="history-item-actions">
+          <button class="history-action-btn history-action-btn-delete" onclick="deleteRecord('diet', '${log.id}')" title="刪除"><i data-lucide="trash-2" style="width:14px; height:14px;"></i></button>
+        </div>
+      `;
     }
     historyListContainer.appendChild(item);
   });
@@ -1290,11 +1450,35 @@ function renderHistory() {
 }
 
 window.editRecord = function(type, id) {
-  if (type === "tmy") {
+  if (type === "sleep") {
+    const logs = getSleepLogs();
+    const log = logs.find(l => l.id === id);
+    if (!log) return;
+    
+    if (log.type === "nap") {
+      document.getElementById("nap-id").value = log.id;
+      if (log.date) document.getElementById("nap-date").value = log.date.substring(0, 10);
+      document.getElementById("nap-duration").value = Math.round(log.sleepDuration * 60);
+      document.getElementById("nap-notes").value = log.notes || "";
+      document.getElementById("modal-nap").showModal();
+    } else {
+      document.getElementById("sleep-id").value = log.id;
+      if (log.date) document.getElementById("sleep-date").value = log.date.substring(0, 10);
+      document.getElementById("sleep-bedtime").value = log.bedtime || "";
+      document.getElementById("sleep-wakeup").value = log.wakeupTime || "";
+      document.getElementById("sleep-duration").value = log.sleepDuration || "";
+      document.getElementById("sleep-hrv").value = log.hrv || "";
+      document.getElementById("sleep-deep").value = log.deepSleep || "";
+      document.getElementById("sleep-rem").value = log.remSleep || "";
+      document.getElementById("sleep-stress").value = log.stress || 3;
+      document.getElementById("sleep-stress-value").textContent = log.stress || 3;
+      document.getElementById("sleep-notes").value = log.notes || "";
+      document.getElementById("modal-sleep").showModal();
+    }
+  } else if (type === "tmy") {
     openTmySymptomsModal(id);
     return;
-  }
-  if (type === "pain") {
+  } else if (type === "pain") {
     const logs = getPainLogs();
     const log  = logs.find(l => l.id === id);
     if (!log) return;
@@ -1396,6 +1580,22 @@ window.deleteRecord = function(type, id) {
         logs[idx].status = "deleted";
         logs[idx].lastUpdated = Date.now();
         saveTmySymptomsLogsLocal(logs);
+      }
+    } else if (type === "sleep") {
+      const logs = getSleepLogs();
+      const idx = logs.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        logs[idx].status = "deleted";
+        logs[idx].lastUpdated = Date.now();
+        saveSleepLogsLocal(logs);
+      }
+    } else if (type === "diet") {
+      const logs = getRainbowDietLogs();
+      const idx = logs.findIndex(l => l.id === id);
+      if (idx !== -1) {
+        logs[idx].status = "deleted";
+        logs[idx].lastUpdated = Date.now();
+        saveRainbowDietLogsLocal(logs);
       }
     }
     renderApp();
@@ -1766,3 +1966,831 @@ async function saveTmySymptomsFormResult() {
     showSyncStatus("同步出錯");
   }
 } // 💡 修正：此處做為檔案結尾，剛好對應關閉 saveTmySymptomsFormResult
+
+// =====================================================================
+// ✨ 每日生理指標與生活習慣追蹤主控模組 (Sleep, HRV, Diet)
+// =====================================================================
+
+// 1. 內建彩虹飲食植物資料庫
+const PLANT_DATABASE = {
+  // 紅色 (red)
+  "番茄": "red", "西紅柿": "red", "蘋果": "red", "草莓": "red", "櫻桃": "red", "紅甜椒": "red", "紅椒": "red", "西瓜": "red", "蔓越莓": "red", "甜菜根": "red", "紅石榴": "red", "紅鳳菜": "red", "枸杞": "red", "紅豆": "red", "蓮霧": "red", "紅棗": "red", "紅火龍果": "red", "紅李": "red",
+  // 橘黃色 (orange-yellow)
+  "胡蘿蔔": "orange-yellow", "紅蘿蔔": "orange-yellow", "南瓜": "orange-yellow", "木瓜": "orange-yellow", "芒果": "orange-yellow", "香蕉": "orange-yellow", "地瓜": "orange-yellow", "番薯": "orange-yellow", "甘薯": "orange-yellow", "柑橘": "orange-yellow", "橘子": "orange-yellow", "柳丁": "orange-yellow", "柳橙": "orange-yellow", "黃甜椒": "orange-yellow", "黃椒": "orange-yellow", "玉米": "orange-yellow", "鳳梨": "orange-yellow", "柿子": "orange-yellow", "檸檬": "orange-yellow", "黃豆": "orange-yellow", "燕麥": "orange-yellow", "小米": "orange-yellow", "哈密瓜": "orange-yellow", "百香果": "orange-yellow", "枇杷": "orange-yellow", "黃豆芽": "orange-yellow", "栗子": "orange-yellow", "黃金果": "orange-yellow",
+  // 綠色 (green)
+  "菠菜": "green", "花椰菜": "green", "綠花椰菜": "green", "青花菜": "green", "空心菜": "green", "青江菜": "green", "奇異果": "green", "小黃瓜": "green", "黃瓜": "green", "蘆筍": "green", "青椒": "green", "芹菜": "green", "綠茶": "green", "芭樂": "green", "韭菜": "green", "四季豆": "green", "豌豆": "green", "毛豆": "green", "高麗菜": "green", "萵苣": "green", "綠豆": "green", "秋葵": "green", "地瓜葉": "green", "絲瓜": "green", "苦瓜": "green", "冬瓜": "green", "芥蘭": "green", "小白菜": "green", "油菜": "green", "茼蒿": "green", "青蔥": "green", "蔥": "green", "九層塔": "green", "香菜": "green", "莧菜": "green", "龍鬚菜": "green", "酪梨": "green", "綠葡萄": "green",
+  // 藍紫色 (blue-purple)
+  "藍莓": "blue-purple", "茄子": "blue-purple", "紫甘藍": "blue-purple", "葡萄": "blue-purple", "桑椹": "blue-purple", "紫地瓜": "blue-purple", "黑莓": "blue-purple", "李子": "blue-purple", "紫洋蔥": "blue-purple", "紫米": "blue-purple", "無花果": "blue-purple", "黑醋栗": "blue-purple", "甜菜": "blue-purple", "紫高麗菜": "blue-purple", "紫山藥": "blue-purple",
+  // 白褐色 (white-brown)
+  "洋蔥": "white-brown", "大蒜": "white-brown", "蒜頭": "white-brown", "白蘿蔔": "white-brown", "蘿蔔": "white-brown", "椰子": "white-brown", "山藥": "white-brown", "白花椰菜": "white-brown", "白花菜": "white-brown", "蘑菇": "white-brown", "金針菇": "white-brown", "杏鮑菇": "white-brown", "香菇": "white-brown", "豆腐": "white-brown", "糙米": "white-brown", "薏仁": "white-brown", "蓮子": "white-brown", "百合": "white-brown", "銀耳": "white-brown", "白木耳": "white-brown", "馬鈴薯": "white-brown", "洋芋": "white-brown", "竹筍": "white-brown", "白芝麻": "white-brown", "花生": "white-brown", "核桃": "white-brown", "腰果": "white-brown", "杏仁": "white-brown", "無籽西瓜": "white-brown", "白精靈菇": "white-brown", "燕麥片": "white-brown",
+  // 黑色 (black)
+  "黑木耳": "black", "木耳": "black", "黑豆": "black", "黑芝麻": "black", "黑米": "black", "海帶": "black", "紫菜": "black", "昆布": "black", "黑棗": "black", "奇亞籽": "black", "黑香菇": "black", "髮菜": "black"
+};
+
+// 2. 植物顏色智能判斷核心
+function classifyPlantColor(plantName) {
+  const name = plantName.trim();
+  if (!name) return null;
+  
+  // A. 優先檢查使用者自定義記憶庫
+  const customColors = getCustomPlantColors();
+  if (customColors[name]) {
+    return customColors[name];
+  }
+  
+  // B. 檢查內建預設資料庫
+  if (PLANT_DATABASE[name]) {
+    return PLANT_DATABASE[name];
+  }
+  
+  // C. 關鍵字規則模糊比對
+  if (name.includes("紅") || name.includes("莓") || name.includes("櫻桃") || name.includes("石榴") || name.includes("西瓜")) return "red";
+  if (name.includes("橘") || name.includes("黃") || name.includes("橙") || name.includes("南瓜") || name.includes("地瓜") || name.includes("芒果") || name.includes("玉米") || name.includes("鳳梨")) return "orange-yellow";
+  if (name.includes("綠") || name.includes("青") || name.includes("茶") || name.includes("菜") || name.includes("瓜") || (name.includes("豆") && !name.includes("黑") && !name.includes("紅") && !name.includes("黃"))) return "green";
+  if (name.includes("紫") || name.includes("藍") || name.includes("葡萄") || name.includes("桑椹")) return "blue-purple";
+  if (name.includes("白") || name.includes("蒜") || name.includes("菇") || name.includes("豆腐") || name.includes("山藥") || name.includes("杏仁") || name.includes("糙米") || name.includes("薏仁")) return "white-brown";
+  if (name.includes("黑") || name.includes("海帶") || name.includes("紫菜") || name.includes("昆布") || name.includes("芝麻")) return "black";
+  
+  return null; // 未知植物，交給前端介面詢問
+}
+
+// 3. 暫存待分類的未知植物名稱
+let pendingUnknownPlant = "";
+
+// 4. 生理與指標模組初始化
+window.initBiometrics = function() {
+  const formSleep = document.getElementById("form-sleep");
+  const formNap = document.getElementById("form-nap");
+  const formQuickHrv = document.getElementById("form-quick-hrv-form");
+  
+  // A. 上床與起床時間連動自動計算時數
+  const bedtimeInput = document.getElementById("sleep-bedtime");
+  const wakeupInput = document.getElementById("sleep-wakeup");
+  const durationInput = document.getElementById("sleep-duration");
+
+  function autoCalcSleepHours() {
+    if (bedtimeInput.value && wakeupInput.value) {
+      const bTime = new Date(bedtimeInput.value);
+      const wTime = new Date(wakeupInput.value);
+      const diffMs = wTime.getTime() - bTime.getTime();
+      if (diffMs > 0) {
+        const hours = diffMs / (1000 * 60 * 60);
+        durationInput.value = hours.toFixed(1);
+      }
+    }
+  }
+  if (bedtimeInput && wakeupInput) {
+    bedtimeInput.addEventListener("change", autoCalcSleepHours);
+    wakeupInput.addEventListener("change", autoCalcSleepHours);
+  }
+
+  // B. 儲存夜間主睡眠
+  if (formSleep) {
+    formSleep.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const id = document.getElementById("sleep-id").value || null;
+      const date = document.getElementById("sleep-date").value;
+      const bedtime = document.getElementById("sleep-bedtime").value;
+      const wakeupTime = document.getElementById("sleep-wakeup").value;
+      const sleepDuration = parseFloat(document.getElementById("sleep-duration").value);
+      const hrv = parseInt(document.getElementById("sleep-hrv").value) || null;
+      const deepSleep = parseFloat(document.getElementById("sleep-deep").value) || null;
+      const remSleep = parseFloat(document.getElementById("sleep-rem").value) || null;
+      const stress = parseInt(document.getElementById("sleep-stress").value);
+      const notes = document.getElementById("sleep-notes").value.trim();
+      
+      // 計算淺眠
+      let lightSleep = null;
+      if (deepSleep !== null && remSleep !== null) {
+        lightSleep = sleepDuration - deepSleep - remSleep;
+      }
+      
+      saveSleepLog({
+        id, date, type: "night", bedtime, wakeupTime, sleepDuration, hrv, deepSleep, remSleep, lightSleep, stress, notes
+      });
+      
+      document.getElementById("modal-sleep").close();
+      renderApp();
+      renderHistory();
+      triggerBackgroundSync();
+    });
+  }
+
+  // C. 儲存白日小睡
+  if (formNap) {
+    formNap.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const id = document.getElementById("nap-id").value || null;
+      const date = document.getElementById("nap-date").value;
+      const durationMins = parseFloat(document.getElementById("nap-duration").value);
+      const notes = document.getElementById("nap-notes").value.trim();
+      
+      saveSleepLog({
+        id, date, type: "nap", sleepDuration: durationMins / 60, notes
+      });
+      
+      document.getElementById("modal-nap").close();
+      renderApp();
+      renderHistory();
+      triggerBackgroundSync();
+    });
+  }
+
+  // D. 快速更新 HRV 彈窗儲存
+  if (formQuickHrv) {
+    formQuickHrv.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const date = document.getElementById("quick-hrv-date").value;
+      const hrvVal = parseInt(document.getElementById("quick-hrv-val").value);
+      
+      const logs = getSleepLogs();
+      // 優先找當晚的主睡眠紀錄更新
+      const todayNightLog = logs.find(l => l.date.substring(0, 10) === date && l.type === "night" && l.status !== "deleted");
+      if (todayNightLog) {
+        todayNightLog.hrv = hrvVal;
+        saveSleepLog(todayNightLog);
+      } else {
+        // 若無，則建立一筆極簡的主睡眠外框，方便之後補登
+        saveSleepLog({
+          date, type: "night", sleepDuration: 0, hrv: hrvVal
+        });
+      }
+      
+      document.getElementById("modal-quick-hrv-dialog").close();
+      renderApp();
+      renderHistory();
+      triggerBackgroundSync();
+    });
+  }
+}
+
+// 5. 快速小睡/HRV/睡眠登錄輔助觸發
+window.openQuickNapModal = function() {
+  const form = document.getElementById("form-nap");
+  if (form) form.reset();
+  document.getElementById("nap-id").value = "";
+  document.getElementById("nap-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("modal-nap").showModal();
+  lucide.createIcons();
+};
+
+window.openQuickHrvModal = function() {
+  const form = document.getElementById("form-quick-hrv-form");
+  if (form) form.reset();
+  document.getElementById("quick-hrv-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("modal-quick-hrv-dialog").showModal();
+  lucide.createIcons();
+};
+
+window.openNewSleepForm = function() {
+  const detailModal = document.getElementById("modal-sleep-detail");
+  if (detailModal && detailModal.open) detailModal.close();
+  
+  const form = document.getElementById("form-sleep");
+  if (form) form.reset();
+  document.getElementById("sleep-id").value = "";
+  
+  const todayStr = new Date().toISOString().split("T")[0];
+  document.getElementById("sleep-date").value = todayStr;
+  
+  // 預先帶入預設時間 (上床 23:00 - 起床 07:00)
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yStr = yesterday.toISOString().split("T")[0];
+  
+  document.getElementById("sleep-bedtime").value = `${yStr}T23:00`;
+  document.getElementById("sleep-wakeup").value = `${todayStr}T07:00`;
+  document.getElementById("sleep-duration").value = "8.0";
+  document.getElementById("sleep-stress-value").textContent = "3";
+  document.getElementById("sleep-stress").value = 3;
+  
+  document.getElementById("modal-sleep").showModal();
+  lucide.createIcons();
+};
+
+// 6. 今日睡眠自動提示邏輯與防打擾
+window.checkDailySleepPrompt = function() {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const logs = getSleepLogs();
+  
+  // 檢查今天是否有夜間主睡眠紀錄
+  const hasSleepToday = logs.some(l => l.date.substring(0, 10) === todayStr && l.type === "night" && l.status !== "deleted");
+  if (hasSleepToday) return;
+  
+  // 檢查今天是否已標記「無紀錄/免提醒」
+  const skipDate = localStorage.getItem("pain_tracker_sleep_prompt_no_record");
+  if (skipDate === todayStr) return;
+  
+  // 若均無，彈出提醒
+  document.getElementById("lbl-auto-sleep-yesterday-date").textContent = todayStr;
+  const modalAuto = document.getElementById("modal-auto-sleep");
+  if (modalAuto && !modalAuto.open) {
+    modalAuto.showModal();
+    lucide.createIcons();
+  }
+};
+
+window.markAutoSleepNoRecord = function() {
+  const todayStr = new Date().toISOString().split("T")[0];
+  localStorage.setItem("pain_tracker_sleep_prompt_no_record", todayStr);
+  document.getElementById("modal-auto-sleep").close();
+};
+
+window.triggerAutoSleepLogging = function() {
+  document.getElementById("modal-auto-sleep").close();
+  openNewSleepForm();
+};
+
+// 7. 彩虹飲食首頁直接輸入與顏色判斷
+window.submitQuickDiet = function() {
+  const inputEl = document.getElementById("input-quick-diet");
+  const plantName = inputEl.value.trim();
+  if (!plantName) return;
+  
+  const todayStr = new Date().toISOString().split("T")[0];
+  const color = classifyPlantColor(plantName);
+  
+  if (color) {
+    // 成功識別顏色，直接記錄
+    saveRainbowDietLog({
+      date: todayStr,
+      plantName: plantName,
+      color: color
+    });
+    inputEl.value = "";
+    alert(`🥗 成功記錄吃了「${plantName}」(${getColorChineseName(color)})！`);
+    renderApp();
+    renderHistory();
+    triggerBackgroundSync();
+  } else {
+    // 未知植物，彈出顏色指派介面
+    pendingUnknownPlant = plantName;
+    document.getElementById("lbl-unknown-plant-name").textContent = plantName;
+    document.getElementById("quick-diet-color-picker").style.display = "block";
+  }
+};
+
+// 使用者手動指派未知植物的顏色
+window.assignColorToUnknown = function(color) {
+  if (!pendingUnknownPlant) return;
+  
+  const todayStr = new Date().toISOString().split("T")[0];
+  
+  // 1. 記錄到本地客製資料庫學習
+  saveCustomPlantColor(pendingUnknownPlant, color);
+  
+  // 2. 寫入彩虹飲食紀錄
+  saveRainbowDietLog({
+    date: todayStr,
+    plantName: pendingUnknownPlant,
+    color: color
+  });
+  
+  // 3. 重設 UI 狀態
+  alert(`🥗 已記下「${pendingUnknownPlant}」為 ${getColorChineseName(color)}，以後將會自動識別！`);
+  pendingUnknownPlant = "";
+  document.getElementById("input-quick-diet").value = "";
+  document.getElementById("quick-diet-color-picker").style.display = "none";
+  
+  renderApp();
+  renderHistory();
+  triggerBackgroundSync();
+};
+
+function getColorChineseName(color) {
+  const names = {
+    "red": "紅色",
+    "orange-yellow": "橘黃色",
+    "green": "綠色",
+    "blue-purple": "藍紫色",
+    "white-brown": "白褐色",
+    "black": "黑色"
+  };
+  return names[color] || color;
+}
+
+// 8. 儀表板指標卡片渲染邏輯
+window.renderDailyHabits = function() {
+  const todayStr = new Date().toISOString().split("T")[0];
+  const sleepLogs = getSleepLogs().filter(l => l.status !== "deleted");
+  const dietLogs = getRainbowDietLogs().filter(l => l.status !== "deleted");
+  
+  // ------------------ A. 渲染睡眠卡片 ------------------
+  const todaySleepLogs = sleepLogs.filter(l => l.date.substring(0, 10) === todayStr);
+  const mainSleep = todaySleepLogs.find(l => l.type === "night");
+  const naps = todaySleepLogs.filter(l => l.type === "nap");
+  
+  const totalHoursText = document.getElementById("val-sleep-hours");
+  const goalBadge = document.getElementById("badge-sleep-goal");
+  const deepLbl = document.getElementById("lbl-deep-hours");
+  const remLbl = document.getElementById("lbl-rem-hours");
+  const lightLbl = document.getElementById("lbl-light-hours");
+  const napLbl = document.getElementById("val-sleep-nap");
+  const stressLbl = document.getElementById("val-sleep-stress");
+  const progressStacked = document.getElementById("sleep-phases-bar");
+  
+  if (mainSleep) {
+    const totalMain = mainSleep.sleepDuration;
+    const napTotalHours = naps.reduce((sum, n) => sum + n.sleepDuration, 0);
+    const grandTotal = totalMain + napTotalHours;
+    
+    if (totalHoursText) totalHoursText.textContent = grandTotal.toFixed(1);
+    
+    // 檢查 7 小時目標 (包含小睡)
+    if (grandTotal >= 7) {
+      if (goalBadge) goalBadge.style.display = "inline-flex";
+      if (progressStacked) progressStacked.classList.add("goal-achieved");
+    } else {
+      if (goalBadge) goalBadge.style.display = "none";
+      if (progressStacked) progressStacked.classList.remove("goal-achieved");
+    }
+    
+    // 計算階段比例
+    const deep = mainSleep.deepSleep || 0;
+    const rem = mainSleep.remSleep || 0;
+    const light = Math.max(0, totalMain - deep - rem);
+    
+    if (deepLbl) deepLbl.textContent = `${deep.toFixed(1)}h`;
+    if (remLbl) remLbl.textContent = `${rem.toFixed(1)}h`;
+    if (lightLbl) lightLbl.textContent = `${light.toFixed(1)}h`;
+    
+    // 設定進度條比例
+    if (progressStacked) {
+      const segments = progressStacked.querySelectorAll(".progress-segment");
+      if (segments.length === 3) {
+        const deepPct = totalMain > 0 ? (deep / totalMain) * 100 : 0;
+        const remPct = totalMain > 0 ? (rem / totalMain) * 100 : 0;
+        const lightPct = totalMain > 0 ? (light / totalMain) * 100 : 0;
+        
+        segments[0].style.width = `${deepPct}%`;
+        segments[1].style.width = `${remPct}%`;
+        segments[2].style.width = `${lightPct}%`;
+      }
+    }
+    
+    if (stressLbl) stressLbl.textContent = `壓力：${mainSleep.stress || '-'}`;
+    
+    const napMins = Math.round(napTotalHours * 60);
+    if (napLbl) napLbl.textContent = napMins > 0 ? `小睡：${napMins} 分鐘` : "小睡：無";
+  } else {
+    // 無今日睡眠主記錄
+    if (totalHoursText) totalHoursText.textContent = "-";
+    if (goalBadge) goalBadge.style.display = "none";
+    if (progressStacked) {
+      progressStacked.classList.remove("goal-achieved");
+      const segments = progressStacked.querySelectorAll(".progress-segment");
+      segments.forEach(s => s.style.width = "0%");
+    }
+    if (deepLbl) deepLbl.textContent = "0h";
+    if (remLbl) remLbl.textContent = "0h";
+    if (lightLbl) lightLbl.textContent = "0h";
+    if (stressLbl) stressLbl.textContent = "壓力：-";
+    
+    const napTotalHours = naps.reduce((sum, n) => sum + n.sleepDuration, 0);
+    const napMins = Math.round(napTotalHours * 60);
+    if (napLbl) napLbl.textContent = napMins > 0 ? `小睡：${napMins} 分鐘` : "小睡：無";
+  }
+  
+  // ------------------ B. 渲染 HRV 卡片 ------------------
+  const valHrvText = document.getElementById("val-hrv");
+  const lblHrvTrend = document.getElementById("lbl-hrv-trend");
+  
+  if (mainSleep && mainSleep.hrv) {
+    if (valHrvText) valHrvText.textContent = mainSleep.hrv;
+    
+    // 計算與過去 7 天的平均對比
+    const pastNightLogs = sleepLogs.filter(l => l.type === "night" && l.hrv && l.date.substring(0, 10) !== todayStr);
+    if (pastNightLogs.length > 0) {
+      const recent7Logs = pastNightLogs.slice(-7);
+      const sumHrv = recent7Logs.reduce((sum, l) => sum + l.hrv, 0);
+      const avgHrv = Math.round(sumHrv / recent7Logs.length);
+      const diff = mainSleep.hrv - avgHrv;
+      
+      if (lblHrvTrend) {
+        if (diff > 0) {
+          lblHrvTrend.innerHTML = `與前 7 天平均相比：<strong style="color:var(--success)">📈 +${diff} ms</strong>`;
+        } else if (diff < 0) {
+          lblHrvTrend.innerHTML = `與前 7 天平均相比：<strong style="color:var(--danger)">📉 ${diff} ms</strong>`;
+        } else {
+          lblHrvTrend.innerHTML = "與前 7 天平均相比：持平";
+        }
+      }
+    } else {
+      if (lblHrvTrend) lblHrvTrend.textContent = "與前 7 天平均相比：無歷史數據";
+    }
+  } else {
+    if (valHrvText) valHrvText.textContent = "-";
+    if (lblHrvTrend) lblHrvTrend.textContent = "今日尚未登錄 HRV。";
+  }
+
+  // ------------------ C. 渲染彩虹飲食卡片 ------------------
+  const startOfWeek = getStartOfWeek(new Date());
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+  
+  // 取得本週所有的飲食紀錄
+  const currentWeekDietLogs = dietLogs.filter(log => {
+    const logTime = new Date(log.date).getTime();
+    return logTime >= startOfWeek.getTime() && logTime < endOfWeek.getTime();
+  });
+  
+  // 計算本週植物多樣性 (不重複植物種類數)
+  const uniquePlantsThisWeek = new Set(currentWeekDietLogs.map(l => l.plantName.trim()));
+  const dietCount = uniquePlantsThisWeek.size;
+  
+  const dietCountVal = document.getElementById("val-diet-count");
+  if (dietCountVal) dietCountVal.textContent = dietCount;
+  
+  // 更新進度條與彩虹漸層
+  const dietProgressFill = document.getElementById("diet-progress-fill");
+  const dietProgressPct = Math.min(100, (dietCount / 30) * 100);
+  if (dietProgressFill) {
+    dietProgressFill.style.width = `${dietProgressPct}%`;
+    if (dietCount >= 30) {
+      dietProgressFill.classList.add("rainbow-gradient-fill");
+      const achBadge = document.getElementById("diet-achievement-badge");
+      if (achBadge) achBadge.style.display = "inline-flex";
+    } else {
+      dietProgressFill.classList.remove("rainbow-gradient-fill");
+      const achBadge = document.getElementById("diet-achievement-badge");
+      if (achBadge) achBadge.style.display = "none";
+    }
+  }
+  
+  // 更新本週成就稱號
+  let achievementText = "🌱 萌芽階段";
+  if (dietCount >= 10 && dietCount < 20) {
+    achievementText = "🌿 茂盛小溪";
+  } else if (dietCount >= 20 && dietCount < 30) {
+    achievementText = "🌳 綠意盎然";
+  } else if (dietCount >= 30) {
+    achievementText = "🌈 彩虹森林！";
+  }
+  const achLbl = document.getElementById("lbl-diet-achievement");
+  if (achLbl) achLbl.textContent = achievementText;
+  
+  // 點亮今日已吃之顏色圈圈
+  const todayDietLogs = dietLogs.filter(l => l.date.substring(0, 10) === todayStr);
+  const eatenColorsToday = new Set(todayDietLogs.map(l => l.color));
+  
+  const indicators = document.querySelectorAll(".rainbow-indicators .rainbow-dot-indicator");
+  const colorMapIndex = ["red", "orange-yellow", "green", "blue-purple", "white-brown", "black"];
+  
+  indicators.forEach((ind, idx) => {
+    const targetColor = colorMapIndex[idx];
+    if (eatenColorsToday.has(targetColor)) {
+      ind.classList.remove("inactive");
+      ind.classList.add("active");
+      ind.textContent = "✓";
+    } else {
+      ind.classList.remove("active");
+      ind.classList.add("inactive");
+      ind.textContent = ind.getAttribute("title").substring(0,2);
+    }
+  });
+};
+
+// 9. 開啟睡眠統計詳情彈窗
+window.openSleepDetailModal = function() {
+  const sleepLogs = getSleepLogs().filter(l => l.status !== "deleted");
+  
+  // 計算主睡眠、小睡、總計的日平均值
+  const nightLogs = sleepLogs.filter(l => l.type === "night" && l.sleepDuration > 0);
+  const napLogs = sleepLogs.filter(l => l.type === "nap");
+  
+  const avgMain = nightLogs.length > 0 ? (nightLogs.reduce((sum, l) => sum + l.sleepDuration, 0) / nightLogs.length).toFixed(1) : "-";
+  const avgNap = napLogs.length > 0 ? (napLogs.reduce((sum, l) => sum + l.sleepDuration * 60, 0) / napLogs.length).toFixed(0) : "-";
+  
+  // 總睡眠日平均 (按有記錄的天數算)
+  const uniqueSleepDays = Array.from(new Set(sleepLogs.map(l => l.date.substring(0, 10))));
+  let avgTotal = "-";
+  if (uniqueSleepDays.length > 0) {
+    const grandSum = sleepLogs.reduce((sum, l) => sum + l.sleepDuration, 0);
+    avgTotal = (grandSum / uniqueSleepDays.length).toFixed(1);
+  }
+  
+  document.getElementById("avg-sleep-main").textContent = avgMain !== "-" ? `${avgMain}小時` : "-";
+  document.getElementById("avg-sleep-nap").textContent = avgNap !== "-" ? `${avgNap}分鐘` : "-";
+  document.getElementById("avg-sleep-total").textContent = avgTotal !== "-" ? `${avgTotal}小時` : "-";
+  
+  // 計算連續達標天數 (7小時以上)
+  const streak = getSleepStreak();
+  document.getElementById("sleep-streak-text").textContent = `🔥 連續達標：${streak} 天`;
+  
+  // 繪製近 7 天睡眠 stacked CSS bar chart
+  const container = document.getElementById("sleep-chart-container");
+  if (container) {
+    container.innerHTML = "";
+    
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      last7Days.push(d.toISOString().substring(0, 10));
+    }
+    
+    last7Days.forEach(dateStr => {
+      const dayLogs = sleepLogs.filter(log => log.date.substring(0, 10) === dateStr);
+      const nightLog = dayLogs.find(log => log.type === "night");
+      const dayNaps = dayLogs.filter(log => log.type === "nap");
+      
+      const nHours = nightLog ? nightLog.sleepDuration : 0;
+      const napHours = dayNaps.reduce((sum, n) => sum + n.sleepDuration, 0);
+      
+      const maxVal = 12;
+      const nightPct = Math.min(100, (nHours / maxVal) * 100);
+      const napPct = Math.min(100, (napHours / maxVal) * 100);
+      
+      const wrapper = document.createElement("div");
+      wrapper.className = "chart-bar-wrapper";
+      
+      const bar = document.createElement("div");
+      bar.className = "chart-bar-stacked";
+      
+      if (nHours > 0) {
+        const nSeg = document.createElement("div");
+        nSeg.className = "chart-bar-segment segment-night";
+        nSeg.style.height = `${nightPct}%`;
+        nSeg.title = `主睡眠: ${nHours.toFixed(1)}h`;
+        bar.appendChild(nSeg);
+      }
+      if (napHours > 0) {
+        const napSeg = document.createElement("div");
+        napSeg.className = "chart-bar-segment segment-nap";
+        napSeg.style.height = `${napPct}%`;
+        napSeg.title = `小睡: ${Math.round(napHours * 60)} 分鐘`;
+        bar.appendChild(napSeg);
+      }
+      
+      const label = document.createElement("div");
+      label.className = "chart-label";
+      const dateObj = new Date(dateStr);
+      const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+      label.innerHTML = `<span style="font-weight:600; color:var(--text-color);">${(nHours + napHours).toFixed(1)}h</span><br>${dateStr.substring(8, 10)}<br>(${weekdays[dateObj.getDay()]})`;
+      
+      wrapper.appendChild(bar);
+      wrapper.appendChild(label);
+      container.appendChild(wrapper);
+    });
+  }
+  
+  document.getElementById("modal-sleep-detail").showModal();
+  lucide.createIcons();
+};
+
+// 10. 開啟 HRV 統計詳情彈窗
+window.openHrvDetailModal = function() {
+  const sleepLogs = getSleepLogs().filter(l => l.status !== "deleted" && l.type === "night" && l.hrv);
+  const recent7Hrv = sleepLogs.slice(-7);
+  
+  const avgHrv7 = recent7Hrv.length > 0 ? Math.round(recent7Hrv.reduce((sum, l) => sum + l.hrv, 0) / recent7Hrv.length) : "-";
+  document.getElementById("avg-hrv-7day").textContent = avgHrv7 !== "-" ? `${avgHrv7} ms` : "-";
+  
+  let statusText = "無紀錄";
+  if (recent7Hrv.length > 0) {
+    const latest = recent7Hrv[recent7Hrv.length - 1].hrv;
+    if (latest > avgHrv7 + 5) {
+      statusText = "🟢 優良 (高於平均)";
+    } else if (latest < avgHrv7 - 5) {
+      statusText = "🟡 疲勞 (低於平均)";
+    } else {
+      statusText = "穩定";
+    }
+  }
+  document.getElementById("avg-hrv-status").textContent = statusText;
+  
+  // 繪製近 7 天 HRV 柱狀圖
+  const container = document.getElementById("hrv-chart-container");
+  if (container) {
+    container.innerHTML = "";
+    
+    const last7Days = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      last7Days.push(d.toISOString().substring(0, 10));
+    }
+    
+    // 找出近 7 天最大 HRV
+    const allLogs = getSleepLogs().filter(l => l.status !== "deleted");
+    let maxHrvVal = 100;
+    last7Days.forEach(dStr => {
+      const mainLog = allLogs.find(l => l.date.substring(0, 10) === dStr && l.type === "night" && l.hrv);
+      if (mainLog && mainLog.hrv > maxHrvVal) maxHrvVal = mainLog.hrv;
+    });
+    
+    last7Days.forEach(dateStr => {
+      const mainLog = allLogs.find(l => l.date.substring(0, 10) === dateStr && l.type === "night");
+      const hVal = mainLog ? mainLog.hrv || 0 : 0;
+      const hPct = Math.min(100, (hVal / maxHrvVal) * 100);
+      
+      const wrapper = document.createElement("div");
+      wrapper.className = "chart-bar-wrapper";
+      
+      const bar = document.createElement("div");
+      bar.className = "chart-bar-single";
+      
+      const fill = document.createElement("div");
+      fill.className = "chart-bar-fill";
+      fill.style.height = `${hPct}%`;
+      fill.title = hVal ? `HRV: ${hVal}ms` : "無紀錄";
+      if (hVal >= avgHrv7 && avgHrv7 !== "-") {
+        fill.classList.add("achieved");
+      }
+      bar.appendChild(fill);
+      
+      const label = document.createElement("div");
+      label.className = "chart-label";
+      const dateObj = new Date(dateStr);
+      const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+      label.innerHTML = `<span style="font-weight:600; color:var(--text-color);">${hVal ? hVal : '-'}</span><br>${dateStr.substring(8, 10)}<br>(${weekdays[dateObj.getDay()]})`;
+      
+      wrapper.appendChild(bar);
+      wrapper.appendChild(label);
+      container.appendChild(wrapper);
+    });
+  }
+  
+  document.getElementById("modal-hrv-detail").showModal();
+  lucide.createIcons();
+};
+
+// 11. 開啟彩虹飲食週統計彈窗
+window.openDietDetailModal = function() {
+  const dietLogs = getRainbowDietLogs().filter(l => l.status !== "deleted");
+  const startOfWeek = getStartOfWeek(new Date());
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 7);
+  
+  // 篩選本週紀錄
+  const weekLogs = dietLogs.filter(log => {
+    const logTime = new Date(log.date).getTime();
+    return logTime >= startOfWeek.getTime() && logTime < endOfWeek.getTime();
+  });
+  
+  const uniquePlants = new Set(weekLogs.map(l => l.plantName.trim()));
+  const totalCount = uniquePlants.size;
+  
+  // 更新本週稱號進度
+  let titleBadgeText = "🌱 萌芽階段";
+  if (totalCount >= 10 && totalCount < 20) titleBadgeText = "🌿 茂盛小溪";
+  else if (totalCount >= 20 && totalCount < 30) titleBadgeText = "🌳 綠意盎然";
+  else if (totalCount >= 30) titleBadgeText = "🌈 彩虹森林！";
+  
+  document.getElementById("diet-badge-text").textContent = `${titleBadgeText} (${totalCount} / 30 種)`;
+  
+  // 渲染歷週達標皇冠 (近 4 週)
+  const crownsContainer = document.getElementById("diet-crowns-container");
+  if (crownsContainer) {
+    crownsContainer.innerHTML = "";
+    
+    const crowns = getDietWeeklyCrowns();
+    crowns.forEach(c => {
+      const crown = document.createElement("span");
+      crown.className = `crown-badge ${c.earned ? 'earned' : ''}`;
+      crown.innerHTML = `👑`;
+      crown.title = `週起點 ${c.dateLabel}：吃了 ${c.count} 種植物 (${c.earned ? '已達標' : '未達標'})`;
+      crownsContainer.appendChild(crown);
+    });
+  }
+  
+  // 依顏色分類渲染本週吃過的食材清單
+  const categorizedList = document.getElementById("diet-categorized-list");
+  if (categorizedList) {
+    categorizedList.innerHTML = "";
+    
+    const colorMap = {
+      "red": { label: "🔴 紅色植物", class: "rb-red" },
+      "orange-yellow": { label: "🟡 橘黃植物", class: "rb-orange-yellow" },
+      "green": { label: "🟢 綠色植物", class: "rb-green" },
+      "blue-purple": { label: "🔵 藍紫植物", class: "rb-blue-purple" },
+      "white-brown": { label: "⚪ 白褐植物", class: "rb-white-brown" },
+      "black": { label: "⚫ 黑色植物", class: "rb-black" }
+    };
+    
+    Object.keys(colorMap).forEach(colorKey => {
+      const colorInfo = colorMap[colorKey];
+      const colorPlantLogs = weekLogs.filter(l => l.color === colorKey);
+      
+      // 依食材名稱排重以顯示
+      const uniquePlantsInColor = [];
+      const seenPlants = new Set();
+      colorPlantLogs.forEach(l => {
+        const name = l.plantName.trim();
+        if (!seenPlants.has(name)) {
+          seenPlants.add(name);
+          uniquePlantsInColor.push(l);
+        }
+      });
+      
+      if (uniquePlantsInColor.length > 0) {
+        const group = document.createElement("div");
+        group.className = "diet-list-group";
+        
+        const title = document.createElement("div");
+        title.className = `diet-list-title ${colorInfo.class}`;
+        if (colorKey === "white-brown") {
+          title.style.color = "#555";
+          title.style.border = "1px solid #ccc";
+        } else {
+          title.style.color = "#fff";
+        }
+        title.textContent = `${colorInfo.label} (${uniquePlantsInColor.length} 種)`;
+        
+        const itemsContainer = document.createElement("div");
+        itemsContainer.className = "diet-list-items";
+        
+        uniquePlantsInColor.forEach(log => {
+          const itemTag = document.createElement("span");
+          itemTag.className = "diet-item-tag";
+          itemTag.innerHTML = `${escapeHTML(log.plantName)} <span style="color:var(--text-dim); margin-left:4px; cursor:pointer;" onclick="deleteRecord('diet', '${log.id}'); document.getElementById('modal-diet-detail').close();">×</span>`;
+          itemsContainer.appendChild(itemTag);
+        });
+        
+        group.appendChild(title);
+        group.appendChild(itemsContainer);
+        categorizedList.appendChild(group);
+      }
+    });
+    
+    if (totalCount === 0) {
+      categorizedList.innerHTML = `<div style="text-align:center; padding:30px; color:var(--text-dim); font-size:0.8rem;">本週尚未記錄任何植物，快在首頁輸入框加菜吧！</div>`;
+    }
+  }
+  
+  document.getElementById("modal-diet-detail").showModal();
+  lucide.createIcons();
+};
+
+// 12. 計算彩虹飲食週度達標狀態 (近 4 週)
+function getDietWeeklyCrowns() {
+  const dietLogs = getRainbowDietLogs().filter(log => log.status !== "deleted");
+  const crowns = [];
+  
+  const now = new Date();
+  const startOfThisWeek = getStartOfWeek(now);
+  
+  for (let i = 3; i >= 0; i--) {
+    const weekStart = new Date(startOfThisWeek);
+    weekStart.setDate(startOfThisWeek.getDate() - i * 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    
+    const weekLogs = dietLogs.filter(log => {
+      const logTime = new Date(log.date).getTime();
+      return logTime >= weekStart.getTime() && logTime < weekEnd.getTime();
+    });
+    
+    const uniquePlants = new Set(weekLogs.map(l => l.plantName.trim()));
+    const earned = uniquePlants.size >= 30;
+    
+    crowns.push({
+      count: uniquePlants.size,
+      earned: earned,
+      dateLabel: `${weekStart.getMonth()+1}/${weekStart.getDate()}`
+    });
+  }
+  
+  return crowns;
+}
+
+// 13. 計算睡眠連續達標天數 (主睡眠 >= 7小時)
+function getSleepStreak() {
+  const sleepLogs = getSleepLogs()
+    .filter(log => log.status !== "deleted" && log.type === "night" && log.sleepDuration >= 7)
+    .map(log => log.date.substring(0, 10));
+  
+  if (sleepLogs.length === 0) return 0;
+  
+  const uniqueDates = Array.from(new Set(sleepLogs)).sort((a, b) => new Date(b) - new Date(a));
+  
+  let streak = 0;
+  const todayStr = new Date().toISOString().substring(0, 10);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().substring(0, 10);
+  
+  if (uniqueDates[0] !== todayStr && uniqueDates[0] !== yesterdayStr) {
+    return 0;
+  }
+  
+  let currentCheck = new Date(uniqueDates[0]);
+  for (let i = 0; i < uniqueDates.length; i++) {
+    const expectedStr = currentCheck.toISOString().substring(0, 10);
+    if (uniqueDates[i] === expectedStr) {
+      streak++;
+      currentCheck.setDate(currentCheck.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+  
+  return streak;
+}
+
+// 初始化時間差預估功能
+document.addEventListener("DOMContentLoaded", () => {
+  if (typeof initSleepTimeAutoCalculator === "function") {
+    initSleepTimeAutoCalculator();
+  }
+});
