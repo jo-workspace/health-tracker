@@ -346,6 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSettingsModal();
     initBiometrics();
     renderApp();
+    checkDailySleepPrompt(); // 💡 僅在頁面啟動載入時檢查彈出
     triggerBackgroundSync(true);
     lucide.createIcons();
   }).catch(err => {
@@ -355,6 +356,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initSettingsModal();
     initBiometrics();
     renderApp();
+    checkDailySleepPrompt(); // 💡 僅在頁面啟動載入時檢查彈出
     triggerBackgroundSync(true);
     lucide.createIcons();
   });
@@ -796,7 +798,6 @@ function renderDashboard() {
   renderLongTermItems();
   renderStats();
   renderDailyHabits();
-  checkDailySleepPrompt();
 }
 
 function renderActivePains() {
@@ -2183,6 +2184,11 @@ window.openNewSleepForm = function() {
 
 // 6. 今日睡眠自動提示邏輯與防打擾
 window.checkDailySleepPrompt = function() {
+  // 💡 如果目前使用者已經打開睡眠或小睡的填寫彈窗，就直接跳過，不打擾輸入
+  const modalSleep = document.getElementById("modal-sleep");
+  const modalNap = document.getElementById("modal-nap");
+  if ((modalSleep && modalSleep.open) || (modalNap && modalNap.open)) return;
+
   const todayStr = new Date().toISOString().split("T")[0];
   const logs = getSleepLogs();
   
@@ -2907,17 +2913,17 @@ Example:
     
     // 自動填入睡眠表單欄位
     if (parsedData.sleepDuration) {
-      document.getElementById("sleep-duration").value = parsedData.sleepDuration;
+      document.getElementById("sleep-duration").value = Number(parsedData.sleepDuration).toFixed(1);
     }
     if (parsedData.stress !== undefined && parsedData.stress !== null) {
       document.getElementById("sleep-stress").value = parsedData.stress;
       document.getElementById("sleep-stress-value").textContent = parsedData.stress;
     }
     if (parsedData.deepSleep) {
-      document.getElementById("sleep-deep").value = parsedData.deepSleep;
+      document.getElementById("sleep-deep").value = Number(parsedData.deepSleep).toFixed(1);
     }
     if (parsedData.remSleep) {
-      document.getElementById("sleep-rem").value = parsedData.remSleep;
+      document.getElementById("sleep-rem").value = Number(parsedData.remSleep).toFixed(1);
     }
     if (parsedData.hrv) {
       document.getElementById("sleep-hrv").value = parsedData.hrv;
