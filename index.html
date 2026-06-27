@@ -72,12 +72,16 @@
           <div class="habit-card" id="card-sleep" onclick="openSleepDetailModal();">
             <div class="habit-card-header">
               <span class="habit-card-title"><i data-lucide="moon" class="icon-sleep"></i>睡眠追蹤</span>
-              <span id="badge-sleep-goal" class="badge-gold" style="display:none;">🔋 滿電 7h+</span>
+              <div style="display:flex; gap:4px;">
+                <span id="badge-deep-sleep-goal" class="badge-gold" style="display:none; background: linear-gradient(135deg, #10b981 0%, #059669 100%);">🧬 深度修復</span>
+                <span id="badge-sleep-goal" class="badge-gold" style="display:none;">🔋 滿電 7h+</span>
+              </div>
             </div>
             <div class="habit-card-body">
               <div class="habit-card-value-group">
                 <span id="val-sleep-hours" class="habit-card-value">-</span>
                 <span class="habit-card-unit">小時</span>
+                <span id="val-sleep-feeling" style="font-size: 1.15rem; margin-left: 8px;" title="起床體感"></span>
               </div>
               <!-- 堆疊進度條 -->
               <div class="sleep-phases-container" id="sleep-phases-bar-container">
@@ -553,6 +557,33 @@
         </div>
 
         <div class="form-group">
+          <label>起床體感評分</label>
+          <input type="hidden" id="sleep-feeling" value="normal">
+          <div class="emoji-selector" id="sleep-feeling-selector">
+            <button type="button" class="emoji-btn" data-value="excellent" onclick="selectSleepFeeling('excellent')">
+              <span class="emoji-icon">🤩</span>
+              <span class="emoji-label">神清氣爽</span>
+            </button>
+            <button type="button" class="emoji-btn active" data-value="normal" onclick="selectSleepFeeling('normal')">
+              <span class="emoji-icon">🙂</span>
+              <span class="emoji-label">精神OK</span>
+            </button>
+            <button type="button" class="emoji-btn" data-value="tired" onclick="selectSleepFeeling('tired')">
+              <span class="emoji-icon">🥱</span>
+              <span class="emoji-label">昏沉想睡</span>
+            </button>
+            <button type="button" class="emoji-btn" data-value="sore" onclick="selectSleepFeeling('sore')">
+              <span class="emoji-icon">🥵</span>
+              <span class="emoji-label">痠痛緊繃</span>
+            </button>
+            <button type="button" class="emoji-btn" data-value="poor" onclick="selectSleepFeeling('poor')">
+              <span class="emoji-icon">🤢</span>
+              <span class="emoji-label">疲憊極差</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
           <label for="sleep-notes">睡眠狀況備註</label>
           <textarea id="sleep-notes" rows="2" placeholder="例如：昨晚稍微有蚊子，半夜醒來一次..."></textarea>
         </div>
@@ -624,9 +655,13 @@
         <!-- 成就獎勵與連續達標 -->
         <div class="achievement-title-box" id="sleep-achievement-box">
           <span style="font-weight:bold; color:#aa9275;">🏆 睡眠目標進度</span>
-          <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center;">
+          <div style="margin-top:6px; display:flex; justify-content:space-between; align-items:center; border-bottom: 1px dashed rgba(0,0,0,0.06); padding-bottom: 6px; margin-bottom: 6px;">
             <span id="sleep-streak-text">🔥 連續達標：0 天</span>
             <span style="font-size:0.75rem; color:var(--text-muted);">每日目標：7 小時</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span id="sleep-deep-achievement-text">🧬 深眠比例達標：-</span>
+            <span style="font-size:0.75rem; color:var(--text-muted);">深眠目標：20% 佔比</span>
           </div>
         </div>
 

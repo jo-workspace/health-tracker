@@ -59,7 +59,7 @@ function syncDataFromClient(payload) {
     },
     sleepLogs: {
       name: "SleepLogs",
-      headers: ["id", "date", "type", "bedtime", "fallAsleepTime", "wakeupTime", "sleepDuration", "deepSleep", "remSleep", "lightSleep", "stress", "hrv", "notes", "lastUpdated"]
+      headers: ["id", "date", "type", "bedtime", "fallAsleepTime", "wakeupTime", "sleepDuration", "deepSleep", "remSleep", "lightSleep", "stress", "feeling", "hrv", "notes", "lastUpdated"]
     },
     rainbowDietLogs: {
       name: "RainbowDietLogs",

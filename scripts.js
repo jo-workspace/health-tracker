@@ -431,6 +431,24 @@ function enableClickOutsideToClose(dialog) {
   });
 }
 
+window.selectSleepFeeling = function(value) {
+  const hiddenInput = document.getElementById("sleep-feeling");
+  if (hiddenInput) {
+    hiddenInput.value = value;
+  }
+  const selector = document.getElementById("sleep-feeling-selector");
+  if (selector) {
+    const btns = selector.querySelectorAll(".emoji-btn");
+    btns.forEach(btn => {
+      if (btn.getAttribute("data-value") === value) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+  }
+};
+
 function initModals() {
   const modalPain        = document.getElementById("modal-pain");
   const modalLongTerm    = document.getElementById("modal-longterm");
@@ -1436,7 +1454,14 @@ function renderHistory() {
       let sleepDetails = "";
       if (isNight) {
         const light = log.lightSleep !== undefined ? log.lightSleep : (log.sleepDuration - (log.deepSleep || 0) - (log.remSleep || 0));
-        sleepDetails = `時數: <strong>${log.sleepDuration} 小時</strong> (深眠: ${log.deepSleep || 0}h, REM: ${log.remSleep || 0}h, 淺眠: ${light.toFixed(1)}h) | HRV: <strong>${log.hrv || '-'} ms</strong> | 壓力: <strong>${log.stress || '-'}</strong>`;
+        const feelingEmoji = {
+          "excellent": "🤩",
+          "normal": "🙂",
+          "tired": "🥱",
+          "sore": "🥵",
+          "poor": "🤢"
+        }[log.feeling] || "";
+        sleepDetails = `時數: <strong>${log.sleepDuration} 小時</strong> ${feelingEmoji} (深眠: ${log.deepSleep || 0}h, REM: ${log.remSleep || 0}h, 淺眠: ${light.toFixed(1)}h) | HRV: <strong>${log.hrv || '-'} ms</strong> | 壓力: <strong>${log.stress || '-'}</strong>`;
       } else {
         sleepDetails = `白日小睡: <strong>${Math.round(log.sleepDuration * 60)} 分鐘</strong>`;
       }
@@ -1508,6 +1533,11 @@ window.editRecord = function(type, id) {
       document.getElementById("sleep-rem").value = log.remSleep || "";
       document.getElementById("sleep-stress").value = (log.stress !== undefined && log.stress !== null) ? log.stress : 20;
       document.getElementById("sleep-stress-value").textContent = (log.stress !== undefined && log.stress !== null) ? log.stress : 20;
+      
+      // 💡 預選起床體感
+      const feelingVal = log.feeling || "normal";
+      selectSleepFeeling(feelingVal);
+      
       document.getElementById("sleep-notes").value = log.notes || "";
       document.getElementById("modal-sleep").showModal();
     }
@@ -2095,6 +2125,7 @@ window.initBiometrics = function() {
       const deepSleep = parseFloat(document.getElementById("sleep-deep").value) || null;
       const remSleep = parseFloat(document.getElementById("sleep-rem").value) || null;
       const stress = parseInt(document.getElementById("sleep-stress").value);
+      const feeling = document.getElementById("sleep-feeling").value;
       const notes = document.getElementById("sleep-notes").value.trim();
       
       // 計算淺眠
@@ -2104,7 +2135,7 @@ window.initBiometrics = function() {
       }
       
       saveSleepLog({
-        id, date, type: "night", bedtime, wakeupTime, sleepDuration, hrv, deepSleep, remSleep, lightSleep, stress, notes
+        id, date, type: "night", bedtime, wakeupTime, sleepDuration, hrv, deepSleep, remSleep, lightSleep, stress, feeling, notes
       });
       
       document.getElementById("modal-sleep").close();
@@ -2201,6 +2232,9 @@ window.openNewSleepForm = function() {
   document.getElementById("sleep-duration").value = "8.0";
   document.getElementById("sleep-stress-value").textContent = "20";
   document.getElementById("sleep-stress").value = 20;
+  
+  // 💡 預設起床體感為正常精神
+  selectSleepFeeling("normal");
   
   document.getElementById("modal-sleep").showModal();
   lucide.createIcons();
@@ -2373,12 +2407,39 @@ window.renderDailyHabits = function() {
     
     if (stressLbl) stressLbl.textContent = `壓力：${mainSleep.stress || '-'}`;
     
+    // 💡 檢查深眠佔比 20% 目標
+    const deepRatio = totalMain > 0 ? (deep / totalMain) * 100 : 0;
+    const deepGoalBadge = document.getElementById("badge-deep-sleep-goal");
+    if (deepGoalBadge) {
+      deepGoalBadge.style.display = deepRatio >= 20 ? "inline-flex" : "none";
+    }
+    
+    // 💡 顯示起床體感
+    const feelingVal = mainSleep.feeling || "";
+    const feelingMap = {
+      "excellent": "🤩",
+      "normal": "🙂",
+      "tired": "🥱",
+      "sore": "🥵",
+      "poor": "🤢"
+    };
+    const feelingEl = document.getElementById("val-sleep-feeling");
+    if (feelingEl) {
+      feelingEl.textContent = feelingMap[feelingVal] || "";
+    }
+    
     const napMins = Math.round(napTotalHours * 60);
     if (napLbl) napLbl.textContent = napMins > 0 ? `小睡：${napMins} 分鐘` : "小睡：無";
   } else {
     // 無今日睡眠主記錄
     if (totalHoursText) totalHoursText.textContent = "-";
     if (goalBadge) goalBadge.style.display = "none";
+    
+    const deepGoalBadge = document.getElementById("badge-deep-sleep-goal");
+    if (deepGoalBadge) deepGoalBadge.style.display = "none";
+    const feelingEl = document.getElementById("val-sleep-feeling");
+    if (feelingEl) feelingEl.textContent = "";
+    
     if (progressStacked) {
       progressStacked.classList.remove("goal-achieved");
       const segments = progressStacked.querySelectorAll(".progress-segment");
@@ -2520,17 +2581,41 @@ window.openSleepDetailModal = function() {
   const streak = getSleepStreak();
   document.getElementById("sleep-streak-text").textContent = `🔥 連續達標：${streak} 天`;
   
+  // 💡 計算近 7 天深眠達標率 (深眠佔比 >= 20% 的天數 / 記錄天數)
+  const last7Days = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    last7Days.push(d.toISOString().substring(0, 10));
+  }
+  
+  let loggedNightsCount = 0;
+  let achievedDeepNightsCount = 0;
+  
+  last7Days.forEach(dateStr => {
+    const dayNightLog = sleepLogs.find(log => log.date.substring(0, 10) === dateStr && log.type === "night");
+    if (dayNightLog) {
+      loggedNightsCount++;
+      const deep = dayNightLog.deepSleep || 0;
+      const total = dayNightLog.sleepDuration || 0;
+      const ratio = total > 0 ? (deep / total) * 100 : 0;
+      if (ratio >= 20) {
+        achievedDeepNightsCount++;
+      }
+    }
+  });
+  
+  const deepAchText = document.getElementById("sleep-deep-achievement-text");
+  if (deepAchText) {
+    deepAchText.textContent = loggedNightsCount > 0 
+      ? `🧬 深眠比例達標：${achievedDeepNightsCount} / ${loggedNightsCount} 天` 
+      : `🧬 深眠比例達標：無紀錄`;
+  }
+  
   // 繪製近 7 天睡眠 stacked CSS bar chart
   const container = document.getElementById("sleep-chart-container");
   if (container) {
     container.innerHTML = "";
-    
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      last7Days.push(d.toISOString().substring(0, 10));
-    }
     
     last7Days.forEach(dateStr => {
       const dayLogs = sleepLogs.filter(log => log.date.substring(0, 10) === dateStr);
