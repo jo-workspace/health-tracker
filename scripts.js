@@ -2536,11 +2536,11 @@ window.renderDailyHabits = function() {
       const latest = mainSleep.hrv;
       if (lblHrvTrend) {
         if (latest >= todayBaseline.min && latest <= todayBaseline.max) {
-          lblHrvTrend.innerHTML = `今日 HRV 落在基準線內：<strong style="color:#7f8e81">🟢 恢復正常</strong>`;
+          lblHrvTrend.innerHTML = `今日 HRV 落在基準線內 (<strong style="color:#7f8e81">🟢 正常</strong>)：代表恢復與生理壓力維持平衡。`;
         } else if (latest < todayBaseline.min) {
-          lblHrvTrend.innerHTML = `今日 HRV 低於基準線：<strong style="color:#c4998e">🔴 恢復較差</strong>`;
+          lblHrvTrend.innerHTML = `今日 HRV 低於基準線 (<strong style="color:#c4998e">🔴 較差</strong>)：可能與疲勞或壓力過大有關，建議多休息。`;
         } else {
-          lblHrvTrend.innerHTML = `今日 HRV 高於基準線：<strong style="color:#8fa0b5">🔵 恢復較佳</strong>`;
+          lblHrvTrend.innerHTML = `今日 HRV 高於基準線 (<strong style="color:#8fa0b5">🔵 較佳</strong>)：代表恢復良好，若持續異常偏高請留意身體變化。`;
         }
       }
     } else {
@@ -2552,9 +2552,9 @@ window.renderDailyHabits = function() {
         const diff = mainSleep.hrv - avgHrv;
         if (lblHrvTrend) {
           if (diff > 0) {
-            lblHrvTrend.innerHTML = `與歷史平均相比：<strong style="color:#8fa0b5">📈 較佳 (+${diff} ms)</strong>`;
+            lblHrvTrend.innerHTML = `與歷史平均相比：<strong style="color:#8fa0b5">📈 較佳 (+${diff} ms)</strong> — 恢復良好。`;
           } else if (diff < 0) {
-            lblHrvTrend.innerHTML = `與歷史平均相比：<strong style="color:#c4998e">📉 較差 (${diff} ms)</strong>`;
+            lblHrvTrend.innerHTML = `與歷史平均相比：<strong style="color:#c4998e">📉 較差 (${diff} ms)</strong> — 留意疲勞。`;
           } else {
             lblHrvTrend.innerHTML = `與歷史平均相比：<strong>持平</strong>`;
           }
@@ -2895,6 +2895,37 @@ window.openHrvDetailModal = function() {
       } else {
         statusEl.textContent = "🔵 較佳 (計算中)";
         statusEl.style.color = "#8fa0b5";
+      }
+    }
+  }
+
+  // 💡 更新 HRV 生理狀態解說內容
+  const explanationDescEl = document.getElementById("hrv-explanation-desc");
+  if (explanationDescEl) {
+    if (todayHrv === null) {
+      explanationDescEl.textContent = "今日尚未登錄 HRV。請於睡眠表單中記錄以取得個人生理狀態解析。";
+    } else {
+      let isWithin = false;
+      let isBelow = false;
+      let isAbove = false;
+      if (todayBaseline) {
+        isWithin = todayHrv >= todayBaseline.min && todayHrv <= todayBaseline.max;
+        isBelow = todayHrv < todayBaseline.min;
+        isAbove = todayHrv > todayBaseline.max;
+      } else {
+        // Fallback 近似對照
+        const tempAvg = nightLogsWithHrv.length > 0 ? nightLogsWithHrv.reduce((sum, l) => sum + l.hrv, 0) / nightLogsWithHrv.length : 50;
+        isWithin = todayHrv >= tempAvg - 5 && todayHrv <= tempAvg + 5;
+        isBelow = todayHrv < tempAvg - 5;
+        isAbove = todayHrv > tempAvg + 5;
+      }
+      
+      if (isWithin) {
+        explanationDescEl.innerHTML = "今日 HRV 落在您的個人基線內。這通常代表您的<strong>自主神經系統平衡穩定</strong>，身體恢復與生理壓力維持在健康的正常狀態，可照常進行工作或運動。";
+      } else if (isBelow) {
+        explanationDescEl.innerHTML = "今日 HRV 低於您的個人基線。可能與<strong>疲勞累積、睡眠不足、心理壓力過大、發炎/生病、飲酒</strong>或前日進行高強度訓練有關，代表身體恢復欠佳，建議今日適度減壓並注重休養。";
+      } else if (isAbove) {
+        explanationDescEl.innerHTML = "今日 HRV 高於您的個人基線。這通常代表您的<strong>身體恢復良好、壓力較低、睡眠充足且精力充沛</strong>。但請注意：<strong>若 HRV 異常偏高且持續數天</strong>，建議觀察是否伴隨其他身體不適或變化。";
       }
     }
   }
