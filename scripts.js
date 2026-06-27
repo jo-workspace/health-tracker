@@ -2519,25 +2519,38 @@ window.renderDailyHabits = function() {
   if (mainSleep && mainSleep.hrv) {
     if (valHrvText) valHrvText.textContent = mainSleep.hrv;
     
-    // 計算與過去 7 天的平均對比
-    const pastNightLogs = sleepLogs.filter(l => l.type === "night" && l.hrv && l.date.substring(0, 10) !== todayStr);
-    if (pastNightLogs.length > 0) {
-      const recent7Logs = pastNightLogs.slice(-7);
-      const sumHrv = recent7Logs.reduce((sum, l) => sum + l.hrv, 0);
-      const avgHrv = Math.round(sumHrv / recent7Logs.length);
-      const diff = mainSleep.hrv - avgHrv;
-      
+    // 計算今日的 21 天滾動基線
+    const todayBaseline = calculateRollingHrvBaseline(todayStr, allLogs);
+    if (todayBaseline) {
+      const latest = mainSleep.hrv;
       if (lblHrvTrend) {
-        if (diff > 0) {
-          lblHrvTrend.innerHTML = `與前 7 天平均相比：<strong style="color:var(--success)">📈 +${diff} ms</strong>`;
-        } else if (diff < 0) {
-          lblHrvTrend.innerHTML = `與前 7 天平均相比：<strong style="color:var(--danger)">📉 ${diff} ms</strong>`;
+        if (latest >= todayBaseline.min && latest <= todayBaseline.max) {
+          lblHrvTrend.innerHTML = `今日 HRV 落在基準線內：<strong style="color:#7f8e81">🟢 恢復正常</strong>`;
+        } else if (latest < todayBaseline.min) {
+          lblHrvTrend.innerHTML = `今日 HRV 低於基準線：<strong style="color:#c4998e">🔴 恢復較差</strong>`;
         } else {
-          lblHrvTrend.innerHTML = "與前 7 天平均相比：持平";
+          lblHrvTrend.innerHTML = `今日 HRV 高於基準線：<strong style="color:#8fa0b5">🔵 恢復較佳</strong>`;
         }
       }
     } else {
-      if (lblHrvTrend) lblHrvTrend.textContent = "與前 7 天平均相比：無歷史數據";
+      // 歷史不夠 21 天，使用暫時平均對照
+      const tempNightLogs = sleepLogs.filter(l => l.type === "night" && l.hrv && l.date.substring(0, 10) !== todayStr);
+      if (tempNightLogs.length > 0) {
+        const sumHrv = tempNightLogs.reduce((sum, l) => sum + l.hrv, 0);
+        const avgHrv = Math.round(sumHrv / tempNightLogs.length);
+        const diff = mainSleep.hrv - avgHrv;
+        if (lblHrvTrend) {
+          if (diff > 0) {
+            lblHrvTrend.innerHTML = `與歷史平均相比：<strong style="color:#8fa0b5">📈 較佳 (+${diff} ms)</strong>`;
+          } else if (diff < 0) {
+            lblHrvTrend.innerHTML = `與歷史平均相比：<strong style="color:#c4998e">📉 較差 (${diff} ms)</strong>`;
+          } else {
+            lblHrvTrend.innerHTML = `與歷史平均相比：<strong>持平</strong>`;
+          }
+        }
+      } else {
+        if (lblHrvTrend) lblHrvTrend.textContent = "基準線計算中（請持續記錄）";
+      }
     }
   } else {
     if (valHrvText) valHrvText.textContent = "-";
@@ -2778,27 +2791,101 @@ window.openSleepDetailModal = function() {
 };
 
 // 10. 開啟 HRV 統計詳情彈窗
+// 💡 HRV 個人基準線計算：取得目標日期往前的 21 天主睡眠 HRV 滾動平均值 ± 1 標準差 (±1 SD)
+function calculateRollingHrvBaseline(targetDateStr, allLogs) {
+  const targetDateObj = new Date(targetDateStr);
+  const startTime = new Date(targetDateObj);
+  startTime.setDate(targetDateObj.getDate() - 20); // 包含當天往前共 21 天
+  
+  const windowLogs = allLogs.filter(log => {
+    if (log.status === "deleted" || log.type !== "night" || !log.hrv) return false;
+    const logTime = new Date(log.date.substring(0, 10)).getTime();
+    return logTime >= startTime.getTime() && logTime <= targetDateObj.getTime();
+  });
+  
+  if (windowLogs.length === 0) return null;
+  
+  const hrvValues = windowLogs.map(l => l.hrv);
+  const n = hrvValues.length;
+  const mean = hrvValues.reduce((sum, v) => sum + v, 0) / n;
+  
+  let stdDev = 0;
+  if (n > 1) {
+    const variance = hrvValues.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (n - 1);
+    stdDev = Math.sqrt(variance);
+  } else {
+    stdDev = mean * 0.1; // fallback
+  }
+  
+  stdDev = Math.max(3, stdDev); // 防呆，標準差不小於 3
+  
+  return {
+    mean: mean,
+    stdDev: stdDev,
+    min: mean - stdDev,
+    max: mean + stdDev,
+    loggedDays: n
+  };
+}
+
+// 10. 開啟 HRV 統計詳情彈窗
 window.openHrvDetailModal = function() {
-  const sleepLogs = getSleepLogs().filter(l => l.status !== "deleted" && l.type === "night" && l.hrv);
-  const recent7Hrv = sleepLogs.slice(-7);
+  const allLogs = getSleepLogs().filter(l => l.status !== "deleted");
+  const nightLogsWithHrv = allLogs.filter(l => l.type === "night" && l.hrv);
   
-  const avgHrv7 = recent7Hrv.length > 0 ? Math.round(recent7Hrv.reduce((sum, l) => sum + l.hrv, 0) / recent7Hrv.length) : "-";
-  document.getElementById("avg-hrv-7day").textContent = avgHrv7 !== "-" ? `${avgHrv7} ms` : "-";
+  const todayStr = new Date().toISOString().substring(0, 10);
+  const todayNightLog = allLogs.find(l => l.date.substring(0, 10) === todayStr && l.type === "night" && l.hrv);
+  const todayHrv = todayNightLog ? todayNightLog.hrv : null;
   
-  let statusText = "無紀錄";
-  if (recent7Hrv.length > 0) {
-    const latest = recent7Hrv[recent7Hrv.length - 1].hrv;
-    if (latest > avgHrv7 + 5) {
-      statusText = "🟢 優良 (高於平均)";
-    } else if (latest < avgHrv7 - 5) {
-      statusText = "🟡 疲勞 (低於平均)";
+  // 計算今日的 21 天滾動基線
+  const todayBaseline = calculateRollingHrvBaseline(todayStr, allLogs);
+  
+  // A. 更新詳情彈窗上方的資訊卡片
+  const todayValEl = document.getElementById("hrv-today-val");
+  if (todayValEl) {
+    todayValEl.textContent = todayHrv !== null ? `${todayHrv} ms` : "-";
+  }
+  
+  const rangeEl = document.getElementById("hrv-baseline-range");
+  if (rangeEl) {
+    rangeEl.textContent = todayBaseline 
+      ? `${Math.round(todayBaseline.min)} - ${Math.round(todayBaseline.max)} ms` 
+      : "-";
+  }
+  
+  const statusEl = document.getElementById("hrv-status-badge");
+  if (statusEl) {
+    if (todayHrv === null) {
+      statusEl.textContent = "-";
+      statusEl.style.color = "var(--text-muted)";
+    } else if (todayBaseline) {
+      if (todayHrv >= todayBaseline.min && todayHrv <= todayBaseline.max) {
+        statusEl.textContent = "🟢 正常";
+        statusEl.style.color = "#7f8e81";
+      } else if (todayHrv < todayBaseline.min) {
+        statusEl.textContent = "🔴 恢復較差";
+        statusEl.style.color = "#c4998e";
+      } else {
+        statusEl.textContent = "🔵 恢復較佳";
+        statusEl.style.color = "#8fa0b5";
+      }
     } else {
-      statusText = "穩定";
+      // 數據不足 21 天的臨時對照
+      const tempAvg = nightLogsWithHrv.length > 0 ? nightLogsWithHrv.reduce((sum, l) => sum + l.hrv, 0) / nightLogsWithHrv.length : 50;
+      if (todayHrv >= tempAvg - 5 && todayHrv <= tempAvg + 5) {
+        statusEl.textContent = "🟢 正常 (計算中)";
+        statusEl.style.color = "#7f8e81";
+      } else if (todayHrv < tempAvg - 5) {
+        statusEl.textContent = "🔴 較差 (計算中)";
+        statusEl.style.color = "#c4998e";
+      } else {
+        statusEl.textContent = "🔵 較佳 (計算中)";
+        statusEl.style.color = "#8fa0b5";
+      }
     }
   }
-  document.getElementById("avg-hrv-status").textContent = statusText;
   
-  // 繪製近 7 天 HRV 柱狀圖
+  // B. 繪製近 7 天 HRV 趨勢與包絡基準線 SVG
   const container = document.getElementById("hrv-chart-container");
   if (container) {
     container.innerHTML = "";
@@ -2810,44 +2897,142 @@ window.openHrvDetailModal = function() {
       last7Days.push(d.toISOString().substring(0, 10));
     }
     
-    // 找出近 7 天最大 HRV
-    const allLogs = getSleepLogs().filter(l => l.status !== "deleted");
-    let maxHrvVal = 100;
-    last7Days.forEach(dStr => {
-      const mainLog = allLogs.find(l => l.date.substring(0, 10) === dStr && l.type === "night" && l.hrv);
-      if (mainLog && mainLog.hrv > maxHrvVal) maxHrvVal = mainLog.hrv;
+    // 計算這 7 天中每一天的 HRV 數值與滾動基準線
+    const chartData = last7Days.map(dateStr => {
+      const log = allLogs.find(l => l.date.substring(0, 10) === dateStr && l.type === "night");
+      const hrvVal = log ? log.hrv || null : null;
+      
+      let baseline = calculateRollingHrvBaseline(dateStr, allLogs);
+      // Fallback：當歷史數據不夠 21 天，使用全部歷史 HRV 的平均值與標準差作為近似包絡線，防範畫面出現空白區域
+      if (!baseline && nightLogsWithHrv.length > 0) {
+        const hrvVals = nightLogsWithHrv.map(l => l.hrv);
+        const mean = hrvVals.reduce((sum, v) => sum + v, 0) / hrvVals.length;
+        let std = 0;
+        if (hrvVals.length > 1) {
+          const variance = hrvVals.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / (hrvVals.length - 1);
+          std = Math.sqrt(variance);
+        } else {
+          std = mean * 0.1;
+        }
+        std = Math.max(3, std);
+        baseline = { mean, stdDev: std, min: mean - std, max: mean + std };
+      }
+      
+      return {
+        dateStr: dateStr,
+        hrv: hrvVal,
+        baseline: baseline
+      };
     });
     
-    last7Days.forEach(dateStr => {
-      const mainLog = allLogs.find(l => l.date.substring(0, 10) === dateStr && l.type === "night");
-      const hVal = mainLog ? mainLog.hrv || 0 : 0;
-      const hPct = Math.min(100, (hVal / maxHrvVal) * 100);
-      
-      const wrapper = document.createElement("div");
-      wrapper.className = "chart-bar-wrapper";
-      
-      const bar = document.createElement("div");
-      bar.className = "chart-bar-single";
-      
-      const fill = document.createElement("div");
-      fill.className = "chart-bar-fill";
-      fill.style.height = `${hPct}%`;
-      fill.title = hVal ? `HRV: ${hVal}ms` : "無紀錄";
-      if (hVal >= avgHrv7 && avgHrv7 !== "-") {
-        fill.classList.add("achieved");
+    // 尋找 Y 軸上下界
+    let yValues = [];
+    chartData.forEach(d => {
+      if (d.hrv !== null) yValues.push(d.hrv);
+      if (d.baseline) {
+        yValues.push(d.baseline.min);
+        yValues.push(d.baseline.max);
       }
-      bar.appendChild(fill);
-      
-      const label = document.createElement("div");
-      label.className = "chart-label";
-      const dateObj = new Date(dateStr);
-      const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
-      label.innerHTML = `<span style="font-weight:600; color:var(--text-color);">${hVal ? hVal : '-'}</span><br>${dateStr.substring(8, 10)}<br>(${weekdays[dateObj.getDay()]})`;
-      
-      wrapper.appendChild(bar);
-      wrapper.appendChild(label);
-      container.appendChild(wrapper);
     });
+    
+    if (yValues.length === 0) {
+      container.innerHTML = `<div style="display:flex; align-items:center; justify-content:center; height:100%; font-size:0.8rem; color:var(--text-dim);">尚無充足 HRV 數據紀錄</div>`;
+      return;
+    }
+    
+    const minVal = Math.min(...yValues);
+    const maxVal = Math.max(...yValues);
+    const chartMin = Math.max(0, Math.floor(minVal - 8));
+    const chartMax = Math.ceil(maxVal + 8);
+    
+    // SVG 面板設定 (420 x 140)
+    const svgWidth = 420;
+    const svgHeight = 140;
+    const paddingX = 35;
+    const paddingY = 22;
+    
+    const getX = (idx) => paddingX + (idx / 6) * (svgWidth - 2 * paddingX);
+    const getY = (val) => {
+      if (chartMax === chartMin) return svgHeight / 2;
+      return paddingY + (1 - (val - chartMin) / (chartMax - chartMin)) * (svgHeight - 2 * paddingY);
+    };
+    
+    let svgHtml = `<svg viewBox="0 0 ${svgWidth} ${svgHeight}" width="100%" height="100%" style="overflow:visible;">`;
+    
+    // 1. 繪製灰色基線封包區 (Polygon)
+    let topPoints = [];
+    let bottomPoints = [];
+    chartData.forEach((d, idx) => {
+      if (d.baseline) {
+        const x = getX(idx);
+        const yMin = getY(d.baseline.min);
+        const yMax = getY(d.baseline.max);
+        topPoints.push(`${x},${yMax}`);
+        bottomPoints.unshift(`${x},${yMin}`);
+      }
+    });
+    
+    if (topPoints.length > 0) {
+      const polygonPoints = [...topPoints, ...bottomPoints].join(" ");
+      // 包絡背景面
+      svgHtml += `<polygon points="${polygonPoints}" fill="rgba(120, 120, 120, 0.12)" stroke="none" />`;
+      
+      // 上下界邊緣虛線
+      let topPath = "M " + topPoints.map(p => p.replace(",", " ")).join(" L ");
+      let bottomPath = "M " + bottomPoints.reverse().map(p => p.replace(",", " ")).join(" L ");
+      svgHtml += `<path d="${topPath}" fill="none" stroke="rgba(120, 120, 120, 0.28)" stroke-width="1" stroke-dasharray="3,3" />`;
+      svgHtml += `<path d="${bottomPath}" fill="none" stroke="rgba(120, 120, 120, 0.28)" stroke-width="1" stroke-dasharray="3,3" />`;
+    }
+    
+    // 2. 繪製 HRV 趨勢折線 (Line)
+    let linePoints = [];
+    chartData.forEach((d, idx) => {
+      if (d.hrv !== null) {
+        linePoints.push(`${getX(idx)},${getY(d.hrv)}`);
+      }
+    });
+    
+    if (linePoints.length > 1) {
+      const pathD = "M " + linePoints.map(p => p.replace(",", " ")).join(" L ");
+      svgHtml += `<path d="${pathD}" fill="none" stroke="rgba(127, 142, 129, 0.5)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`;
+    }
+    
+    // 3. 繪製節點圓圈與數值與 X 軸標籤
+    const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+    chartData.forEach((d, idx) => {
+      const x = getX(idx);
+      
+      // 日期與星期標籤
+      const dateObj = new Date(d.dateStr);
+      svgHtml += `<text x="${x}" y="123" text-anchor="middle" font-size="8.5" fill="var(--text-muted)" font-weight="500">${d.dateStr.substring(8, 10)}</text>`;
+      svgHtml += `<text x="${x}" y="133" text-anchor="middle" font-size="8" fill="var(--text-dim)">(${weekdays[dateObj.getDay()]})</text>`;
+      
+      // 數據節點
+      if (d.hrv !== null) {
+        const y = getY(d.hrv);
+        
+        // 基於基準線判定今日狀態色彩
+        let color = "#7f8e81"; // 🟢 正常 (預設)
+        if (d.baseline) {
+          if (d.hrv < d.baseline.min) {
+            color = "#c4998e"; // 🔴 較差
+          } else if (d.hrv > d.baseline.max) {
+            color = "#8fa0b5"; // 🔵 較佳
+          }
+        }
+        
+        // 外圓點
+        svgHtml += `<circle cx="${x}" cy="${y}" r="4.5" fill="${color}" stroke="#ffffff" stroke-width="1.5" style="filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.1));" />`;
+        // 頂部數值
+        svgHtml += `<text x="${x}" y="${y - 9}" text-anchor="middle" font-size="8.5" fill="var(--text-color)" font-weight="600">${d.hrv}</text>`;
+      } else {
+        // 無記錄節點輔助小灰點
+        svgHtml += `<circle cx="${x}" cy="${getY(chartMin + (chartMax-chartMin)/2)}" r="2" fill="rgba(150,150,150,0.15)" />`;
+      }
+    });
+    
+    svgHtml += "</svg>";
+    container.innerHTML = svgHtml;
   }
   
   document.getElementById("modal-hrv-detail").showModal();

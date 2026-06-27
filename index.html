@@ -717,20 +717,34 @@
         <button class="btn-close-modal" data-target="modal-hrv-detail"><i data-lucide="x"></i></button>
       </div>
       <div style="padding:20px;">
-        <div class="chart-summary-info">
-          <div class="chart-summary-item">
-            <span id="avg-hrv-7day" class="chart-summary-val">-</span>
-            <span class="chart-summary-lbl">近 7 天 HRV 平均</span>
+        <div class="chart-summary-info" style="display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 8px; text-align: center;">
+          <div class="chart-summary-item" style="border-right: 1px solid var(--card-border); padding-right: 4px;">
+            <span id="hrv-today-val" class="chart-summary-val">-</span>
+            <span class="chart-summary-lbl">今日 HRV</span>
           </div>
-          <div class="chart-summary-item" style="border-left:1px solid var(--card-border);">
-            <span id="avg-hrv-status" class="chart-summary-val">-</span>
-            <span class="chart-summary-lbl">最新狀態</span>
+          <div class="chart-summary-item" style="border-right: 1px solid var(--card-border); padding-left: 4px; padding-right: 4px;">
+            <span id="hrv-baseline-range" class="chart-summary-val" style="font-size: 0.95rem;">-</span>
+            <span class="chart-summary-lbl">個人基準線 (±1 SD)</span>
+          </div>
+          <div class="chart-summary-item" style="padding-left: 4px;">
+            <span id="hrv-status-badge" class="chart-summary-val" style="font-size: 0.95rem;">-</span>
+            <span class="chart-summary-lbl">今日恢復狀態</span>
           </div>
         </div>
 
-        <h4 style="font-size:0.85rem; margin-bottom:8px;">近 7 天 HRV 歷史紀錄</h4>
-        <div class="chart-container" id="hrv-chart-container">
-          <!-- 柱子由 JS 動態生成 -->
+        <h4 style="font-size:0.85rem; margin-bottom:8px;">近 7 天 HRV 趨勢與基準線</h4>
+        <div class="chart-container" id="hrv-chart-container" style="position:relative; overflow:visible;">
+          <!-- SVG 圖表由 JS 動態生成 -->
+        </div>
+
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+          <div style="font-size:0.68rem; color:var(--text-dim); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center;">
+            <span style="font-weight:600;">HRV 狀態：</span>
+            <span style="display:inline-flex; align-items:center; gap:3px;"><span class="dot-indicator" style="background:#7f8e81; width:6px; height:6px;"></span>🟢 正常</span>
+            <span style="display:inline-flex; align-items:center; gap:3px;"><span class="dot-indicator" style="background:#c4998e; width:6px; height:6px;"></span>🔴 較差</span>
+            <span style="display:inline-flex; align-items:center; gap:3px;"><span class="dot-indicator" style="background:#8fa0b5; width:6px; height:6px;"></span>🔵 較佳</span>
+            <span style="margin-left:4px; display:inline-flex; align-items:center; gap:3px;"><span style="display:inline-block; width:12px; height:8px; background:rgba(150,150,150,0.15); border-radius:2px;"></span> 基準線範圍 (±1 SD)</span>
+          </div>
         </div>
       </div>
     </dialog>
