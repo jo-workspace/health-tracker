@@ -19,6 +19,14 @@ const KEY_LAST_SYNCED  = "pain_tracker_last_synced";
 const KEY_API_TOKEN    = "pain_tracker_api_token";
 const KEY_GEMINI_KEY   = "pain_tracker_gemini_key";
 
+// 💡 取得本地日期字串 (YYYY-MM-DD)，防範 UTC 時區轉換導致早上 8 點前顯示為前一天的 Bug
+function getLocalDateString(dateObj = new Date()) {
+  const year = dateObj.getFullYear();
+  const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+  const day = String(dateObj.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function getGeminiKey() {
   return localStorage.getItem(KEY_GEMINI_KEY) || "";
 }
@@ -499,7 +507,7 @@ function initModals() {
     formLongTerm.reset();
     document.getElementById("lt-id").value = "";
     
-    const today = new Date().toISOString().split("T")[0];
+    const today = getLocalDateString();
     document.getElementById("lt-date").value = today;
     
     modalLongTerm.showModal();
@@ -1124,7 +1132,7 @@ window.prefillLongtermModal = function(itemName) {
   document.getElementById("lt-id").value        = "";
   document.getElementById("lt-item-name").value = itemName;
   
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   document.getElementById("lt-date").value = today;
   
   modalLongTerm.showModal();
@@ -1145,7 +1153,7 @@ window.prefillForNewCheckup = function(id) {
   document.getElementById("lt-hospital").value = log.hospital || "";
   document.getElementById("lt-doctor").value = log.doctor || "";
   
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   document.getElementById("lt-date").value = today;
   
   document.getElementById("lt-size-w").value = log.sizeWidth || "";
@@ -1555,7 +1563,7 @@ window.editRecord = function(type, id) {
     if (!log) return;
     
     document.getElementById("pain-id").value       = log.id;
-    if (log.date) {  document.getElementById("pain-date").value = new Date(log.date).toISOString().split('T')[0];}
+    if (log.date) {  document.getElementById("pain-date").value = getLocalDateString(new Date(log.date));}
     document.getElementById("pain-location").value = log.location;
     document.getElementById("pain-intensity").value = log.intensity;
     updatePainIntensityBadge(log.intensity);
@@ -1603,14 +1611,14 @@ window.editRecord = function(type, id) {
     if (!log) return;
     
     document.getElementById("lt-id").value          = log.id;
-    if (log.date) {  document.getElementById("lt-date").value = new Date(log.date).toISOString().split('T')[0];}
+    if (log.date) {  document.getElementById("lt-date").value = getLocalDateString(new Date(log.date));}
     document.getElementById("lt-item-name").value   = log.itemName;
     document.getElementById("lt-size-w").value      = log.sizeWidth  || "";
     document.getElementById("lt-size-h").value      = log.sizeHeight || "";
     document.getElementById("lt-size-d").value      = log.sizeDepth  || "";
     document.getElementById("lt-hospital").value    = log.hospital   || "";
     document.getElementById("lt-doctor").value      = log.doctor     || "";
-    if (log.nextCheckupDate) {  document.getElementById("lt-next-date").value = new Date(log.nextCheckupDate).toISOString().split('T')[0];}
+    if (log.nextCheckupDate) {  document.getElementById("lt-next-date").value = getLocalDateString(new Date(log.nextCheckupDate));}
     document.getElementById("lt-notes").value       = log.notes      || "";
     
     document.getElementById("modal-longterm").showModal();
@@ -1715,7 +1723,7 @@ function formatDateOnly(dateString) {
     // 如果切不出來，再交給 Date 物件保底
     const date = new Date(dateString);
     if (!isNaN(date.getTime())) {
-      return date.toISOString().split('T')[0];
+      return getLocalDateString(date);
     }
     return dateString; // 真的失敗了才回傳原本的字串
   } catch (e) {
@@ -1782,7 +1790,7 @@ function formatTimeAgo(timestamp) {
 // ✨ 補在檔案最底部：一鍵紀錄咬合板配戴並自動同步
 // =====================================================================
 async function recordBiteSplintAction() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   
   const newLog = {
     date: today
@@ -1986,7 +1994,7 @@ window.openTmySymptomSummaryModal = function() {
 
 async function saveTmySymptomsFormResult() {
   const id = document.getElementById("tmy-log-id").value || null;
-  const today = new Date().toISOString().split("T")[0];
+  const today = getLocalDateString();
   const modal = document.getElementById("modal-tmy-symptoms");
   
   const symptomCbs = modal.querySelectorAll("input[name='symptom']:checked");
@@ -2151,7 +2159,7 @@ window.initBiometrics = function() {
         const selDateObj = new Date(selectedDate);
         const yesterdayObj = new Date(selDateObj);
         yesterdayObj.setDate(yesterdayObj.getDate() - 1);
-        const yesterdayStr = yesterdayObj.toISOString().split("T")[0];
+        const yesterdayStr = getLocalDateString(yesterdayObj);
         
         document.getElementById("sleep-bedtime").value = `${yesterdayStr}T23:00`;
         document.getElementById("sleep-wakeup").value = `${selectedDate}T07:00`;
@@ -2249,7 +2257,7 @@ window.openQuickNapModal = function() {
   const form = document.getElementById("form-nap");
   if (form) form.reset();
   document.getElementById("nap-id").value = "";
-  document.getElementById("nap-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("nap-date").value = getLocalDateString();
   document.getElementById("modal-nap").showModal();
   lucide.createIcons();
 };
@@ -2257,7 +2265,7 @@ window.openQuickNapModal = function() {
 window.openQuickHrvModal = function() {
   const form = document.getElementById("form-quick-hrv-form");
   if (form) form.reset();
-  document.getElementById("quick-hrv-date").value = new Date().toISOString().split("T")[0];
+  document.getElementById("quick-hrv-date").value = getLocalDateString();
   document.getElementById("modal-quick-hrv-dialog").showModal();
   lucide.createIcons();
 };
@@ -2267,7 +2275,7 @@ window.openNewSleepForm = function() {
   if (detailModal && detailModal.open) detailModal.close();
   
   // 💡 防呆：如果今天已經有夜間主睡眠紀錄，則直接呼叫 editRecord 進入編輯模式，防止填寫過的資料被覆蓋重設
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString();
   const logs = getSleepLogs().filter(l => l.status !== "deleted");
   const existingLog = logs.find(l => l.date.substring(0, 10) === todayStr && l.type === "night");
   
@@ -2285,7 +2293,7 @@ window.openNewSleepForm = function() {
   // 預先帶入預設時間 (上床 23:00 - 起床 07:00)
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yStr = yesterday.toISOString().split("T")[0];
+  const yStr = getLocalDateString(yesterday);
   
   document.getElementById("sleep-bedtime").value = `${yStr}T23:00`;
   document.getElementById("sleep-wakeup").value = `${todayStr}T07:00`;
@@ -2307,7 +2315,7 @@ window.checkDailySleepPrompt = function() {
   const modalNap = document.getElementById("modal-nap");
   if ((modalSleep && modalSleep.open) || (modalNap && modalNap.open)) return;
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString();
   const logs = getSleepLogs();
   
   // 檢查今天是否有夜間主睡眠紀錄
@@ -2328,7 +2336,7 @@ window.checkDailySleepPrompt = function() {
 };
 
 window.markAutoSleepNoRecord = function() {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString();
   localStorage.setItem("pain_tracker_sleep_prompt_no_record", todayStr);
   document.getElementById("modal-auto-sleep").close();
 };
@@ -2344,7 +2352,7 @@ window.submitQuickDiet = function() {
   const plantName = inputEl.value.trim();
   if (!plantName) return;
   
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString();
   const color = classifyPlantColor(plantName);
   
   if (color) {
@@ -2371,7 +2379,7 @@ window.submitQuickDiet = function() {
 window.assignColorToUnknown = function(color) {
   if (!pendingUnknownPlant) return;
   
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString();
   
   // 1. 記錄到本地客製資料庫學習
   saveCustomPlantColor(pendingUnknownPlant, color);
@@ -2408,7 +2416,7 @@ function getColorChineseName(color) {
 
 // 8. 儀表板指標卡片渲染邏輯
 window.renderDailyHabits = function() {
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = getLocalDateString();
   const sleepLogs = getSleepLogs().filter(l => l.status !== "deleted");
   const dietLogs = getRainbowDietLogs().filter(l => l.status !== "deleted");
   
@@ -2682,7 +2690,7 @@ window.openSleepDetailModal = function() {
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    last7Days.push(d.toISOString().substring(0, 10));
+    last7Days.push(getLocalDateString(d));
   }
   
   let loggedNightsCount = 0;
@@ -2839,7 +2847,7 @@ window.openHrvDetailModal = function() {
   const allLogs = getSleepLogs().filter(l => l.status !== "deleted");
   const nightLogsWithHrv = allLogs.filter(l => l.type === "night" && l.hrv);
   
-  const todayStr = new Date().toISOString().substring(0, 10);
+  const todayStr = getLocalDateString();
   const todayNightLog = allLogs.find(l => l.date.substring(0, 10) === todayStr && l.type === "night" && l.hrv);
   const todayHrv = todayNightLog ? todayNightLog.hrv : null;
   
@@ -2900,7 +2908,7 @@ window.openHrvDetailModal = function() {
     for (let i = 6; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      last7Days.push(d.toISOString().substring(0, 10));
+      last7Days.push(getLocalDateString(d));
     }
     
     // 計算這 7 天中每一天的 HRV 數值與滾動基準線
@@ -3195,10 +3203,10 @@ function getSleepStreak() {
   const uniqueDates = Array.from(new Set(sleepLogs)).sort((a, b) => new Date(b) - new Date(a));
   
   let streak = 0;
-  const todayStr = new Date().toISOString().substring(0, 10);
+  const todayStr = getLocalDateString();
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
-  const yesterdayStr = yesterday.toISOString().substring(0, 10);
+  const yesterdayStr = getLocalDateString(yesterday);
   
   if (uniqueDates[0] !== todayStr && uniqueDates[0] !== yesterdayStr) {
     return 0;
@@ -3206,7 +3214,7 @@ function getSleepStreak() {
   
   let currentCheck = new Date(uniqueDates[0]);
   for (let i = 0; i < uniqueDates.length; i++) {
-    const expectedStr = currentCheck.toISOString().substring(0, 10);
+    const expectedStr = getLocalDateString(currentCheck);
     if (uniqueDates[i] === expectedStr) {
       streak++;
       currentCheck.setDate(currentCheck.getDate() - 1);
@@ -3248,11 +3256,11 @@ window.importSleepScreenshot = async function(event) {
   
   try {
     // 💡 根據睡眠記錄表單上所設定的日期作為基準日期，以避免 AI 誤判年份 (例如 2024)
-    const selectedDate = document.getElementById("sleep-date").value || new Date().toISOString().split("T")[0];
+    const selectedDate = document.getElementById("sleep-date").value || getLocalDateString();
     const selDateObj = new Date(selectedDate);
     const yesterdayObj = new Date(selDateObj);
     yesterdayObj.setDate(yesterdayObj.getDate() - 1);
-    const yesterdayStr = yesterdayObj.toISOString().split("T")[0];
+    const yesterdayStr = getLocalDateString(yesterdayObj);
 
     const promptParts = [
       {
