@@ -695,8 +695,14 @@
           <!-- 柱子由 JS 動態生成 -->
         </div>
         
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
-          <span style="font-size:0.75rem; color:var(--text-dim);"><span class="dot-indicator dot-deep"></span> 主睡眠 &nbsp; <span class="dot-indicator dot-light"></span> 小睡</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; flex-wrap:wrap; gap:10px;">
+          <div style="font-size:0.7rem; color:var(--text-dim); display:flex; flex-wrap:wrap; gap:4px 8px; align-items:center;">
+            <span style="font-weight:600;">主睡眠壓力：</span>
+            <span style="display:inline-flex; align-items:center; gap:3px;"><span class="dot-indicator" style="background:#3d5a80; width:6px; height:6px;"></span>低 (&le;15)</span>
+            <span style="display:inline-flex; align-items:center; gap:3px;"><span class="dot-indicator" style="background:#90b3c4; width:6px; height:6px;"></span>中 (16-30)</span>
+            <span style="display:inline-flex; align-items:center; gap:3px;"><span class="dot-indicator" style="background:#b0c2cc; width:6px; height:6px;"></span>高 (&gt;30)</span>
+            <span style="margin-left:6px; display:inline-flex; align-items:center; gap:3px;"><span class="dot-indicator dot-light" style="width:6px; height:6px;"></span>小睡</span>
+          </div>
           <button class="btn btn-primary" style="padding:6px 12px; font-size:0.75rem;" onclick="openNewSleepForm();">
             <i data-lucide="plus" style="width:14px; height:14px;"></i> 新增主睡眠紀錄
           </button>

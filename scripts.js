@@ -2732,7 +2732,25 @@ window.openSleepDetailModal = function() {
         const nSeg = document.createElement("div");
         nSeg.className = "chart-bar-segment segment-night";
         nSeg.style.height = `${nightPct}%`;
-        nSeg.title = `主睡眠: ${nHours.toFixed(1)}h`;
+        
+        // 💡 根據睡眠壓力動態調整主睡眠柱體顏色與 Title 提示
+        if (nightLog && nightLog.stress !== undefined && nightLog.stress !== null) {
+          const stress = nightLog.stress;
+          if (stress <= 15) {
+            nSeg.style.backgroundColor = "#3d5a80"; // 🧘 深海藍 (低壓力)
+            nSeg.title = `主睡眠: ${nHours.toFixed(1)}h (壓力: ${stress} 理想)`;
+          } else if (stress <= 30) {
+            nSeg.style.backgroundColor = "#90b3c4"; // 湖水藍 (普通壓力)
+            nSeg.title = `主睡眠: ${nHours.toFixed(1)}h (壓力: ${stress} 普通)`;
+          } else {
+            nSeg.style.backgroundColor = "#b0c2cc"; // 煙燻灰藍 (高壓力)
+            nSeg.title = `主睡眠: ${nHours.toFixed(1)}h (壓力: ${stress} 偏高)`;
+          }
+        } else {
+          nSeg.style.backgroundColor = "#6f7f99"; // 預設藍 (無壓力資料)
+          nSeg.title = `主睡眠: ${nHours.toFixed(1)}h`;
+        }
+        
         bar.appendChild(nSeg);
       }
       if (napHours > 0) {
