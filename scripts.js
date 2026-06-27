@@ -2634,11 +2634,34 @@ window.openSleepDetailModal = function() {
   document.getElementById("avg-sleep-nap").textContent = avgNap !== "-" ? `${avgNap}分鐘` : "-";
   document.getElementById("avg-sleep-total").textContent = avgTotal !== "-" ? `${avgTotal}小時` : "-";
   
+  // 💡 計算主睡眠的平均壓力等級 (排除 null/undefined)
+  const stressLogs = nightLogs.filter(l => l.stress !== undefined && l.stress !== null);
+  const avgStress = stressLogs.length > 0 ? (stressLogs.reduce((sum, l) => sum + l.stress, 0) / stressLogs.length).toFixed(0) : "-";
+  
+  const avgStressValEl = document.getElementById("avg-sleep-stress");
+  const avgStressLblEl = document.getElementById("avg-sleep-stress-lbl");
+  if (avgStressValEl && avgStressLblEl) {
+    avgStressValEl.textContent = avgStress !== "-" ? avgStress : "-";
+    if (avgStress !== "-") {
+      const stressNum = parseInt(avgStress);
+      if (stressNum <= 15) {
+        avgStressValEl.style.color = "#10b981";
+        avgStressLblEl.innerHTML = `平均睡眠壓力 <span style="font-size:0.6rem; background:rgba(16,185,129,0.12); color:#10b981; padding:1px 4px; border-radius:4px; margin-left:2px; font-weight:600;">🟢 理想</span>`;
+      } else {
+        avgStressValEl.style.color = "#ea580c";
+        avgStressLblEl.innerHTML = `平均睡眠壓力 <span style="font-size:0.6rem; background:rgba(234,88,12,0.12); color:#ea580c; padding:1px 4px; border-radius:4px; margin-left:2px; font-weight:600;">🟠 偏高</span>`;
+      }
+    } else {
+      avgStressValEl.style.color = "var(--text-color)";
+      avgStressLblEl.textContent = "平均睡眠壓力";
+    }
+  }
+  
   // 計算連續達標天數 (7小時以上)
   const streak = getSleepStreak();
   document.getElementById("sleep-streak-text").textContent = `🔥 連續達標：${streak} 天`;
   
-  // 💡 計算近 7 天深眠達標率 (深眠佔比 >= 20% 的天數 / 記錄天數)
+  // 💡 計算近 7 天深眠與低壓力達標率
   const last7Days = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
@@ -2648,6 +2671,7 @@ window.openSleepDetailModal = function() {
   
   let loggedNightsCount = 0;
   let achievedDeepNightsCount = 0;
+  let achievedStressNightsCount = 0;
   
   last7Days.forEach(dateStr => {
     const dayNightLog = sleepLogs.find(log => log.date.substring(0, 10) === dateStr && log.type === "night");
@@ -2659,6 +2683,11 @@ window.openSleepDetailModal = function() {
       if (ratio >= 20) {
         achievedDeepNightsCount++;
       }
+      
+      // 💡 檢查低壓力 (<= 15) 是否達標
+      if (dayNightLog.stress !== undefined && dayNightLog.stress !== null && dayNightLog.stress <= 15) {
+        achievedStressNightsCount++;
+      }
     }
   });
   
@@ -2667,6 +2696,13 @@ window.openSleepDetailModal = function() {
     deepAchText.textContent = loggedNightsCount > 0 
       ? `🧬 深眠比例達標：${achievedDeepNightsCount} / ${loggedNightsCount} 天` 
       : `🧬 深眠比例達標：無紀錄`;
+  }
+  
+  const stressAchText = document.getElementById("sleep-stress-achievement-text");
+  if (stressAchText) {
+    stressAchText.textContent = loggedNightsCount > 0 
+      ? `🧘 低壓力達標：${achievedStressNightsCount} / ${loggedNightsCount} 天` 
+      : `🧘 低壓力達標：無紀錄`;
   }
   
   // 繪製近 7 天睡眠 stacked CSS bar chart

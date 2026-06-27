@@ -659,25 +659,33 @@
             <span id="sleep-streak-text">🔥 連續達標：0 天</span>
             <span style="font-size:0.75rem; color:var(--text-muted);">每日目標：7 小時</span>
           </div>
-          <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 1px dashed rgba(0,0,0,0.06); padding-bottom: 6px; margin-bottom: 6px;">
             <span id="sleep-deep-achievement-text">🧬 深眠比例達標：-</span>
             <span style="font-size:0.75rem; color:var(--text-muted);">深眠目標：20% 佔比</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span id="sleep-stress-achievement-text">🧘 低壓力達標：-</span>
+            <span style="font-size:0.75rem; color:var(--text-muted);">壓力目標：&le; 15</span>
           </div>
         </div>
 
         <!-- 數據快照 -->
-        <div class="chart-summary-info">
-          <div class="chart-summary-item">
+        <div class="chart-summary-info" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; text-align: center; justify-items: stretch;">
+          <div class="chart-summary-item" style="border-right: 1px solid var(--card-border); padding-right: 8px;">
             <span id="avg-sleep-main" class="chart-summary-val">-</span>
             <span class="chart-summary-lbl">主睡眠日平均</span>
           </div>
-          <div class="chart-summary-item" style="border-left:1px solid var(--card-border); border-right:1px solid var(--card-border);">
+          <div class="chart-summary-item" style="padding-left: 8px;">
             <span id="avg-sleep-nap" class="chart-summary-val">-</span>
             <span class="chart-summary-lbl">小睡日平均</span>
           </div>
-          <div class="chart-summary-item">
+          <div class="chart-summary-item" style="border-top: 1px solid var(--card-border); border-right: 1px solid var(--card-border); padding-top: 8px; padding-right: 8px; margin-top: 4px;">
             <span id="avg-sleep-total" class="chart-summary-val">-</span>
             <span class="chart-summary-lbl">睡眠總日平均</span>
+          </div>
+          <div class="chart-summary-item" style="border-top: 1px solid var(--card-border); padding-top: 8px; padding-left: 8px; margin-top: 4px;">
+            <span id="avg-sleep-stress" class="chart-summary-val">-</span>
+            <span class="chart-summary-lbl" id="avg-sleep-stress-lbl">平均睡眠壓力</span>
           </div>
         </div>
 
