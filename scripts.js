@@ -414,6 +414,23 @@ function initNavigation() {
 // 4. 對話框 (Modals) 管理
 // =====================================================================
 
+function enableClickOutsideToClose(dialog) {
+  if (!dialog) return;
+  dialog.addEventListener("click", (e) => {
+    // 💡 點擊背景（dialog 本體）但不是 dialog 內部的 box 時關閉對話框
+    const rect = dialog.getBoundingClientRect();
+    const isInDialog = (
+      e.clientX >= rect.left &&
+      e.clientX <= rect.right &&
+      e.clientY >= rect.top &&
+      e.clientY <= rect.bottom
+    );
+    if (!isInDialog) {
+      dialog.close();
+    }
+  });
+}
+
 function initModals() {
   const modalPain        = document.getElementById("modal-pain");
   const modalLongTerm    = document.getElementById("modal-longterm");
@@ -461,6 +478,11 @@ function initModals() {
       const targetId = btn.getAttribute("data-target");
       document.getElementById(targetId).close();
     });
+  });
+
+  // 💡 點擊背景（空白處）自動關閉
+  document.querySelectorAll("dialog").forEach(dialog => {
+    enableClickOutsideToClose(dialog);
   });
 
   // 疼痛指數滑桿連動
@@ -1798,6 +1820,7 @@ function openTmySymptomsModal(editId = null) {
       </form>
     `;
     document.body.appendChild(modal);
+    enableClickOutsideToClose(modal);
     
     document.getElementById("form-tmy-symptoms").addEventListener("submit", (e) => {
       e.preventDefault();
@@ -1839,6 +1862,7 @@ window.openTmySymptomSummaryModal = function() {
     modal.className = "app-modal";
     
     document.body.appendChild(modal);
+    enableClickOutsideToClose(modal);
   }
   
   const tmyLogs = getTmySymptomsLogs ? getTmySymptomsLogs() : [];
