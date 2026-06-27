@@ -336,6 +336,36 @@ function loadModals() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // 💡 全域事件代理：關閉 Modal 的按鈕監聽 (放置在最前段，防範後續模組崩潰導致關閉功能失效)
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-close-modal");
+    if (btn) {
+      e.preventDefault();
+      const targetId = btn.getAttribute("data-target");
+      if (targetId) {
+        const modal = document.getElementById(targetId);
+        if (modal) modal.close();
+      }
+    }
+  });
+
+  // 💡 全域事件代理：點擊對話框外部背景 (backdrop) 自動關閉
+  document.addEventListener("click", (e) => {
+    if (e.target.tagName === "DIALOG") {
+      const dialog = e.target;
+      const rect = dialog.getBoundingClientRect();
+      const isInDialog = (
+        e.clientX >= rect.left &&
+        e.clientX <= rect.right &&
+        e.clientY >= rect.top &&
+        e.clientY <= rect.bottom
+      );
+      if (!isInDialog) {
+        dialog.close();
+      }
+    }
+  });
+
   // 先初始化不依賴 modal DOM 的部分
   initNavigation();
   initDataManagement();
@@ -476,35 +506,7 @@ function initModals() {
     lucide.createIcons();
   });
 
-  // 💡 全域事件代理：關閉 Modal 的按鈕監聽 (防範任何初始化或動態加載問題)
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".btn-close-modal");
-    if (btn) {
-      e.preventDefault();
-      const targetId = btn.getAttribute("data-target");
-      if (targetId) {
-        const modal = document.getElementById(targetId);
-        if (modal) modal.close();
-      }
-    }
-  });
-
-  // 💡 全域事件代理：點擊對話框外部背景 (backdrop) 自動關閉
-  document.addEventListener("click", (e) => {
-    if (e.target.tagName === "DIALOG") {
-      const dialog = e.target;
-      const rect = dialog.getBoundingClientRect();
-      const isInDialog = (
-        e.clientX >= rect.left &&
-        e.clientX <= rect.right &&
-        e.clientY >= rect.top &&
-        e.clientY <= rect.bottom
-      );
-      if (!isInDialog) {
-        dialog.close();
-      }
-    }
-  });
+  // (全域事件代理已移至 DOMContentLoaded 最前段，防範執行緒崩潰)
 
   // 疼痛指數滑桿連動
   document.getElementById("pain-intensity").addEventListener("input", (e) => {
