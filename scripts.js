@@ -2523,7 +2523,7 @@ window.renderDailyHabits = function() {
     if (valHrvText) valHrvText.textContent = mainSleep.hrv;
     
     // 計算今日的 21 天滾動基線
-    const todayBaseline = calculateRollingHrvBaseline(todayStr, allLogs);
+    const todayBaseline = calculateRollingHrvBaseline(todayStr, sleepLogs);
     if (todayBaseline) {
       const latest = mainSleep.hrv;
       if (lblHrvTrend) {
