@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>身體疼痛與健康追蹤器</title>
+  <title>Health Tracker</title>
   <meta name="description" content="離線優先的個人健康追蹤工具，記錄疼痛日誌、長期健康追蹤項目與回診提醒。">
   <link rel="icon" type="image/png" href="favicon_02.png">
   <link rel="alternate icon" type="image/x-icon" href="favicon_02.ico">
@@ -112,7 +112,10 @@
           <div class="habit-card" id="card-hrv" onclick="openHrvDetailModal();">
             <div class="habit-card-header">
               <span class="habit-card-title"><i data-lucide="activity" class="icon-hrv"></i>HRV 指標</span>
-              <button id="btn-quick-hrv" class="card-btn" style="padding: 4px 8px; font-size:0.7rem;" onclick="event.stopPropagation(); openQuickHrvModal();">更新</button>
+              <div style="display:flex; gap:6px; align-items:center;">
+                <span id="badge-hrv-status" class="badge-gold" style="display:none; border-radius: 4px; font-weight: 500;">-</span>
+                <button id="btn-quick-hrv" class="card-btn" style="padding: 4px 8px; font-size:0.7rem;" onclick="event.stopPropagation(); openQuickHrvModal();">更新</button>
+              </div>
             </div>
             <div class="habit-card-body">
               <div class="habit-card-value-group">

@@ -2526,46 +2526,64 @@ window.renderDailyHabits = function() {
   // ------------------ B. 渲染 HRV 卡片 ------------------
   const valHrvText = document.getElementById("val-hrv");
   const lblHrvTrend = document.getElementById("lbl-hrv-trend");
+  const badgeHrvStatus = document.getElementById("badge-hrv-status");
   
   if (mainSleep && mainSleep.hrv) {
     if (valHrvText) valHrvText.textContent = mainSleep.hrv;
     
     // 計算今日的 21 天滾動基線
     const todayBaseline = calculateRollingHrvBaseline(todayStr, sleepLogs);
-    if (todayBaseline) {
+    
+    // 1. 更新右上角恢復狀態 Tag
+    if (badgeHrvStatus) {
+      badgeHrvStatus.style.display = "inline-flex";
       const latest = mainSleep.hrv;
-      if (lblHrvTrend) {
+      if (todayBaseline) {
         if (latest >= todayBaseline.min && latest <= todayBaseline.max) {
-          lblHrvTrend.innerHTML = `HRV <strong style="color:#7f8e81">🟢 正常</strong>`;
+          badgeHrvStatus.textContent = "🟢 正常";
+          badgeHrvStatus.style.background = "#7f8e81";
         } else if (latest < todayBaseline.min) {
-          lblHrvTrend.innerHTML = `HRV <strong style="color:#c4998e">🟠 壓力大</strong>`;
+          badgeHrvStatus.textContent = "🔴 壓力高";
+          badgeHrvStatus.style.background = "#c4998e";
         } else {
-          lblHrvTrend.innerHTML = `HRV <strong style="color:#8fa0b5">🔵 恢復佳</strong>`;
-      }
-      }
-    } else {
-      // 歷史不夠 21 天，使用暫時平均對照
-      const tempNightLogs = sleepLogs.filter(l => l.type === "night" && l.hrv && l.date.substring(0, 10) !== todayStr);
-      if (tempNightLogs.length > 0) {
-        const sumHrv = tempNightLogs.reduce((sum, l) => sum + l.hrv, 0);
-        const avgHrv = Math.round(sumHrv / tempNightLogs.length);
-        const diff = mainSleep.hrv - avgHrv;
-        if (lblHrvTrend) {
-          if (diff > 0) {
-            lblHrvTrend.innerHTML = `與歷史平均相比：<strong style="color:#8fa0b5">📈 較佳 (+${diff} ms)</strong> — 恢復良好。`;
-          } else if (diff < 0) {
-            lblHrvTrend.innerHTML = `與歷史平均相比：<strong style="color:#c4998e">📉 較差 (${diff} ms)</strong> — 留意疲勞。`;
-          } else {
-            lblHrvTrend.innerHTML = `與歷史平均相比：<strong>持平</strong>`;
-          }
+          badgeHrvStatus.textContent = "🔵 恢復佳";
+          badgeHrvStatus.style.background = "#8fa0b5";
         }
       } else {
-        if (lblHrvTrend) lblHrvTrend.textContent = "基準線計算中（請持續記錄）";
+        // 數據不足時的臨時對照
+        const tempNightLogs = sleepLogs.filter(l => l.type === "night" && l.hrv && l.date.substring(0, 10) !== todayStr);
+        if (tempNightLogs.length > 0) {
+          const sumHrv = tempNightLogs.reduce((sum, l) => sum + l.hrv, 0);
+          const avgHrv = Math.round(sumHrv / tempNightLogs.length);
+          const diff = latest - avgHrv;
+          if (diff > 0) {
+            badgeHrvStatus.textContent = "🔵 恢復佳";
+            badgeHrvStatus.style.background = "#8fa0b5";
+          } else if (diff < 0) {
+            badgeHrvStatus.textContent = "🔴 壓力高";
+            badgeHrvStatus.style.background = "#c4998e";
+          } else {
+            badgeHrvStatus.textContent = "🟢 正常";
+            badgeHrvStatus.style.background = "#7f8e81";
+          }
+        } else {
+          badgeHrvStatus.style.display = "none";
+        }
+      }
+    }
+    
+    // 2. 卡片下方顯示簡潔的個人基準線區間
+    if (lblHrvTrend) {
+      if (todayBaseline) {
+        lblHrvTrend.textContent = `個人基準線：${Math.round(todayBaseline.min)} - ${Math.round(todayBaseline.max)} ms`;
+      } else {
+        lblHrvTrend.textContent = "基準線計算中（請持續記錄）";
       }
     }
   } else {
     if (valHrvText) valHrvText.textContent = "-";
     if (lblHrvTrend) lblHrvTrend.textContent = "今日尚未登錄 HRV。";
+    if (badgeHrvStatus) badgeHrvStatus.style.display = "none";
   }
 
   // ------------------ C. 渲染彩虹飲食卡片 ------------------
@@ -2877,10 +2895,10 @@ window.openHrvDetailModal = function() {
         statusEl.textContent = "🟢 正常";
         statusEl.style.color = "#7f8e81";
       } else if (todayHrv < todayBaseline.min) {
-        statusEl.textContent = "🔴 恢復較差";
+        statusEl.textContent = "🔴 壓力高";
         statusEl.style.color = "#c4998e";
       } else {
-        statusEl.textContent = "🔵 恢復較佳";
+        statusEl.textContent = "🔵 恢復佳";
         statusEl.style.color = "#8fa0b5";
       }
     } else {
@@ -2890,10 +2908,10 @@ window.openHrvDetailModal = function() {
         statusEl.textContent = "🟢 正常 (計算中)";
         statusEl.style.color = "#7f8e81";
       } else if (todayHrv < tempAvg - 5) {
-        statusEl.textContent = "🔴 較差 (計算中)";
+        statusEl.textContent = "🔴 壓力高 (計算中)";
         statusEl.style.color = "#c4998e";
       } else {
-        statusEl.textContent = "🔵 較佳 (計算中)";
+        statusEl.textContent = "🔵 恢復佳 (計算中)";
         statusEl.style.color = "#8fa0b5";
       }
     }
@@ -3061,9 +3079,9 @@ window.openHrvDetailModal = function() {
         let color = "#7f8e81"; // 🟢 正常 (預設)
         if (d.baseline) {
           if (d.hrv < d.baseline.min) {
-            color = "#c4998e"; // 🔴 較差
+            color = "#c4998e"; // 🔴 壓力高
           } else if (d.hrv > d.baseline.max) {
-            color = "#8fa0b5"; // 🔵 較佳
+            color = "#8fa0b5"; // 🔵 恢復佳
           }
         }
         
