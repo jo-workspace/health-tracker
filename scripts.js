@@ -2536,12 +2536,12 @@ window.renderDailyHabits = function() {
       const latest = mainSleep.hrv;
       if (lblHrvTrend) {
         if (latest >= todayBaseline.min && latest <= todayBaseline.max) {
-          lblHrvTrend.innerHTML = `今日 HRV 落在基準線內 (<strong style="color:#7f8e81">🟢 正常</strong>)：代表恢復與生理壓力維持平衡。`;
+          lblHrvTrend.innerHTML = `HRV <strong style="color:#7f8e81">🟢 正常</strong>`;
         } else if (latest < todayBaseline.min) {
-          lblHrvTrend.innerHTML = `今日 HRV 低於基準線 (<strong style="color:#c4998e">🔴 較差</strong>)：可能與疲勞或壓力過大有關，建議多休息。`;
+          lblHrvTrend.innerHTML = `HRV <strong style="color:#c4998e">🟠 壓力大</strong>`;
         } else {
-          lblHrvTrend.innerHTML = `今日 HRV 高於基準線 (<strong style="color:#8fa0b5">🔵 較佳</strong>)：代表恢復良好，若持續異常偏高請留意身體變化。`;
-        }
+          lblHrvTrend.innerHTML = `HRV <strong style="color:#8fa0b5">🔵 恢復佳</strong>`;
+      }
       }
     } else {
       // 歷史不夠 21 天，使用暫時平均對照
