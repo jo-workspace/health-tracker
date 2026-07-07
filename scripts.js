@@ -2832,11 +2832,11 @@ function calculateSevenDayHrvAvg(targetDateStr, allLogs) {
   return Math.round(sum / windowLogs.length);
 }
 
-// 💡 HRV 個人基準線計算：取得目標日期往前的 21 天主睡眠 HRV 滾動平均值 ± 1 標準差 (±1 SD)
+// 💡 HRV 個人基準線計算：取得目標日期往前的 90 天主睡眠 HRV 滾動平均值 ± 1 標準差 (±1 SD)
 function calculateRollingHrvBaseline(targetDateStr, allLogs) {
   const targetDateObj = new Date(targetDateStr);
   const startTime = new Date(targetDateObj);
-  startTime.setDate(targetDateObj.getDate() - 20); // 包含當天往前共 21 天
+  startTime.setDate(targetDateObj.getDate() - 89); // 包含當天往前共 90 天
   
   const windowLogs = allLogs.filter(log => {
     if (log.status === "deleted" || log.type !== "night" || !log.hrv) return false;
@@ -2952,11 +2952,10 @@ window.openHrvDetailModal = function() {
     
     // 計算這 28 天中每一天的 HRV 數值與滾動基準線
     const chartData = last28Days.map(dateStr => {
-      const log = allLogs.find(l => l.date.substring(0, 10) === dateStr && l.type === "night");
-      const hrvVal = log && log.hrv ? calculateSevenDayHrvAvg(dateStr, allLogs) : null;
+      const sevenDayAvg = calculateSevenDayHrvAvg(dateStr, allLogs);
       
       let baseline = calculateRollingHrvBaseline(dateStr, allLogs);
-      // Fallback：當歷史數據不夠 21 天，使用全部歷史 HRV 的平均值與標準差作為近似包絡線，防範畫面出現空白區域
+      // Fallback：當歷史數據不夠，使用全部歷史 HRV 的平均值與標準差作為近似包絡線，防範畫面出現空白區域
       if (!baseline && nightLogsWithHrv.length > 0) {
         const hrvVals = nightLogsWithHrv.map(l => l.hrv);
         const mean = hrvVals.reduce((sum, v) => sum + v, 0) / hrvVals.length;
@@ -2973,7 +2972,7 @@ window.openHrvDetailModal = function() {
       
       return {
         dateStr: dateStr,
-        hrv: hrvVal,
+        sevenDayAvg: sevenDayAvg,
         baseline: baseline
       };
     });
@@ -2981,7 +2980,7 @@ window.openHrvDetailModal = function() {
     // 尋找 Y 軸上下界
     let yValues = [];
     chartData.forEach(d => {
-      if (d.hrv !== null) yValues.push(d.hrv);
+      if (d.sevenDayAvg !== null) yValues.push(d.sevenDayAvg);
       if (d.baseline) {
         yValues.push(d.baseline.min);
         yValues.push(d.baseline.max);
@@ -3040,17 +3039,7 @@ window.openHrvDetailModal = function() {
     }
     
     // 2. 繪製 HRV 趨勢折線 (Line)
-    let linePoints = [];
-    chartData.forEach((d, idx) => {
-      if (d.hrv !== null) {
-        linePoints.push(`${getX(idx)},${getY(d.hrv)}`);
-      }
-    });
-    
-    if (linePoints.length > 1) {
-      const pathD = "M " + linePoints.map(p => p.replace(",", " ")).join(" L ");
-      svgHtml += `<path d="${pathD}" fill="none" stroke="rgba(127, 142, 129, 0.5)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />`;
-    }
+    // 配合 Garmin 邏輯：不繪製連線，僅保留獨立的資料節點
     
     // 3. 繪製節點圓圈與數值與 X 軸標籤
     const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
@@ -3065,25 +3054,30 @@ window.openHrvDetailModal = function() {
       }
       
       // 數據節點
-      if (d.hrv !== null) {
-        const y = getY(d.hrv);
+      if (d.sevenDayAvg !== null) {
+        const y = getY(d.sevenDayAvg);
         
-        // 基於基準線判定今日狀態色彩
-        let color = "#7f8e81"; // 🟢 正常 (預設)
+        // 💡 基於 7 天平均值與基準線來判定當日狀態色彩與形狀
+        let isBalanced = true;
+        let color = "#7f8e81"; // 🟢 平衡 (預設，綠色)
+        
         if (d.baseline) {
-          if (d.hrv < d.baseline.min) {
-            color = "#c4998e"; // 🔴 壓力高
-          } else if (d.hrv > d.baseline.max) {
-            color = "#8fa0b5"; // 🔵 恢復佳
+          if (d.sevenDayAvg < d.baseline.min || d.sevenDayAvg > d.baseline.max) {
+            isBalanced = false;
+            color = "#d4a373"; // 🟡/🔴 不平衡 (橘色)
           }
         }
         
-        // 外圓點
-        svgHtml += `<circle cx="${x}" cy="${y}" r="3.5" fill="${color}" stroke="#ffffff" stroke-width="1.5" style="filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.1));" />`;
+        // 繪製節點形狀：平衡為圓形，不平衡為方形
+        if (isBalanced) {
+          svgHtml += `<circle cx="${x}" cy="${y}" r="3.5" fill="${color}" stroke="#ffffff" stroke-width="1.5" style="filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.1));" />`;
+        } else {
+          svgHtml += `<rect x="${x - 3.5}" y="${y - 3.5}" width="7" height="7" fill="${color}" stroke="#ffffff" stroke-width="1.5" rx="1.5" style="filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.1));" />`;
+        }
         
         // 頂部數值 (只顯示最後一天的數值，保持畫面乾淨)
         if (idx === totalPoints - 1) {
-          svgHtml += `<text x="${x}" y="${y - 9}" text-anchor="middle" font-size="8.5" fill="var(--text-color)" font-weight="600">${d.hrv}</text>`;
+          svgHtml += `<text x="${x}" y="${y - 9}" text-anchor="middle" font-size="8.5" fill="var(--text-color)" font-weight="600">${d.sevenDayAvg}</text>`;
         }
       } else {
         // 無記錄節點輔助小灰點
