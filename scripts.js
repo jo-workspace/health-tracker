@@ -384,7 +384,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initSettingsModal();
     initBiometrics();
     renderApp();
-    checkDailySleepPrompt(); // 💡 僅在頁面啟動載入時檢查彈出
     triggerBackgroundSync(true);
     lucide.createIcons();
   }).catch(err => {
@@ -394,7 +393,6 @@ document.addEventListener("DOMContentLoaded", () => {
     initSettingsModal();
     initBiometrics();
     renderApp();
-    checkDailySleepPrompt(); // 💡 僅在頁面啟動載入時檢查彈出
     triggerBackgroundSync(true);
     lucide.createIcons();
   });
@@ -717,7 +715,10 @@ function triggerBackgroundSync(isStartup = false) {
   const isGAS  = typeof google !== "undefined" && google.script && google.script.run;
   const hasUrl = getSyncUrl() !== "";
   
-  if (!isGAS && !hasUrl) return;
+  if (!isGAS && !hasUrl) {
+    if (isStartup) checkDailySleepPrompt();
+    return;
+  }
   
   const btn = document.getElementById("btn-settings");
   const dot = document.getElementById("sync-dot");
@@ -727,10 +728,16 @@ function triggerBackgroundSync(isStartup = false) {
   syncWithCloud().then(res => {
     console.log("背景自動同步成功", res);
     updateSyncStatusHeader();
-    if (isStartup) renderApp();
+    if (isStartup) {
+      renderApp();
+      checkDailySleepPrompt();
+    }
   }).catch(err => {
     console.error("背景自動同步失敗", err);
     updateSyncStatusHeader();
+    if (isStartup) {
+      checkDailySleepPrompt();
+    }
   });
 }
 
@@ -1542,6 +1549,7 @@ window.editRecord = function(type, id) {
       document.getElementById("sleep-wakeup").value = log.wakeupTime || "";
       document.getElementById("sleep-duration").value = log.sleepDuration || "";
       document.getElementById("sleep-hrv").value = log.hrv || "";
+      document.getElementById("sleep-rhr").value = log.restingHeartRate || "";
       document.getElementById("sleep-deep").value = log.deepSleep || "";
       document.getElementById("sleep-rem").value = log.remSleep || "";
       document.getElementById("sleep-stress").value = (log.stress !== undefined && log.stress !== null) ? log.stress : 20;
@@ -2141,6 +2149,7 @@ window.initBiometrics = function() {
         document.getElementById("sleep-wakeup").value = existingLog.wakeupTime || "";
         document.getElementById("sleep-duration").value = existingLog.sleepDuration ? Number(existingLog.sleepDuration).toFixed(1) : "";
         document.getElementById("sleep-hrv").value = existingLog.hrv || "";
+        document.getElementById("sleep-rhr").value = existingLog.restingHeartRate || "";
         document.getElementById("sleep-deep").value = existingLog.deepSleep ? Number(existingLog.deepSleep).toFixed(1) : "";
         document.getElementById("sleep-rem").value = existingLog.remSleep ? Number(existingLog.remSleep).toFixed(1) : "";
         
@@ -2165,6 +2174,7 @@ window.initBiometrics = function() {
         document.getElementById("sleep-wakeup").value = `${selectedDate}T07:00`;
         document.getElementById("sleep-duration").value = "8.0";
         document.getElementById("sleep-hrv").value = "";
+        document.getElementById("sleep-rhr").value = "";
         document.getElementById("sleep-deep").value = "";
         document.getElementById("sleep-rem").value = "";
         
@@ -2187,6 +2197,7 @@ window.initBiometrics = function() {
       const wakeupTime = document.getElementById("sleep-wakeup").value;
       const sleepDuration = parseFloat(document.getElementById("sleep-duration").value);
       const hrv = parseInt(document.getElementById("sleep-hrv").value) || null;
+      const restingHeartRate = parseInt(document.getElementById("sleep-rhr").value) || null;
       const deepSleep = parseFloat(document.getElementById("sleep-deep").value) || null;
       const remSleep = parseFloat(document.getElementById("sleep-rem").value) || null;
       const stress = parseInt(document.getElementById("sleep-stress").value);
@@ -2194,7 +2205,7 @@ window.initBiometrics = function() {
       const notes = document.getElementById("sleep-notes").value.trim();
       
       saveSleepLog({
-        id, date, type: "night", bedtime, wakeupTime, sleepDuration, hrv, deepSleep, remSleep, stress, feeling, notes
+        id, date, type: "night", bedtime, wakeupTime, sleepDuration, hrv, restingHeartRate, deepSleep, remSleep, stress, feeling, notes
       });
       
       document.getElementById("modal-sleep").close();
@@ -2431,6 +2442,7 @@ window.renderDailyHabits = function() {
   const remLbl = document.getElementById("lbl-rem-hours");
   const lightLbl = document.getElementById("lbl-light-hours");
   const napLbl = document.getElementById("val-sleep-nap");
+  const rhrLbl = document.getElementById("val-sleep-rhr");
   const stressLbl = document.getElementById("val-sleep-stress");
   const progressStacked = document.getElementById("sleep-phases-bar");
   
@@ -2473,6 +2485,7 @@ window.renderDailyHabits = function() {
       }
     }
     
+    if (rhrLbl) rhrLbl.textContent = `靜心：${mainSleep.restingHeartRate || '-'}`;
     if (stressLbl) stressLbl.textContent = `壓力：${mainSleep.stress || '-'}`;
     
     // 💡 檢查深眠佔比 20% 目標
@@ -2531,44 +2544,26 @@ window.renderDailyHabits = function() {
   if (mainSleep && mainSleep.hrv) {
     if (valHrvText) valHrvText.textContent = mainSleep.hrv;
     
-    // 計算今日的 21 天滾動基線
+    // 計算今日的 21 天滾動基線與 7 天平均 (Garmin 模式)
     const todayBaseline = calculateRollingHrvBaseline(todayStr, sleepLogs);
+    const sevenDayAvg = calculateSevenDayHrvAvg(todayStr, sleepLogs);
     
     // 1. 更新右上角恢復狀態 Tag
     if (badgeHrvStatus) {
-      badgeHrvStatus.style.display = "inline-flex";
-      const latest = mainSleep.hrv;
-      if (todayBaseline) {
-        if (latest >= todayBaseline.min && latest <= todayBaseline.max) {
-          badgeHrvStatus.textContent = "🟢 正常";
+      if (sevenDayAvg !== null && todayBaseline) {
+        badgeHrvStatus.style.display = "inline-flex";
+        if (sevenDayAvg >= todayBaseline.min && sevenDayAvg <= todayBaseline.max) {
+          badgeHrvStatus.textContent = "🟢 平衡";
           badgeHrvStatus.style.background = "#7f8e81";
-        } else if (latest < todayBaseline.min) {
-          badgeHrvStatus.textContent = "🔴 壓力高";
+        } else if (sevenDayAvg < todayBaseline.min) {
+          badgeHrvStatus.textContent = "🔴 偏低";
           badgeHrvStatus.style.background = "#c4998e";
         } else {
-          badgeHrvStatus.textContent = "🔵 恢復佳";
-          badgeHrvStatus.style.background = "#8fa0b5";
+          badgeHrvStatus.textContent = "🟡 不平衡";
+          badgeHrvStatus.style.background = "#d4a373";
         }
       } else {
-        // 數據不足時的臨時對照
-        const tempNightLogs = sleepLogs.filter(l => l.type === "night" && l.hrv && l.date.substring(0, 10) !== todayStr);
-        if (tempNightLogs.length > 0) {
-          const sumHrv = tempNightLogs.reduce((sum, l) => sum + l.hrv, 0);
-          const avgHrv = Math.round(sumHrv / tempNightLogs.length);
-          const diff = latest - avgHrv;
-          if (diff > 0) {
-            badgeHrvStatus.textContent = "🔵 恢復佳";
-            badgeHrvStatus.style.background = "#8fa0b5";
-          } else if (diff < 0) {
-            badgeHrvStatus.textContent = "🔴 壓力高";
-            badgeHrvStatus.style.background = "#c4998e";
-          } else {
-            badgeHrvStatus.textContent = "🟢 正常";
-            badgeHrvStatus.style.background = "#7f8e81";
-          }
-        } else {
-          badgeHrvStatus.style.display = "none";
-        }
+        badgeHrvStatus.style.display = "none";
       }
     }
     
@@ -2820,6 +2815,23 @@ window.openSleepDetailModal = function() {
 };
 
 // 10. 開啟 HRV 統計詳情彈窗
+// 💡 計算過去 7 天的 HRV 平均值
+function calculateSevenDayHrvAvg(targetDateStr, allLogs) {
+  const targetDateObj = new Date(targetDateStr);
+  const startTime = new Date(targetDateObj);
+  startTime.setDate(targetDateObj.getDate() - 6);
+  
+  const windowLogs = allLogs.filter(log => {
+    if (log.status === "deleted" || log.type !== "night" || !log.hrv) return false;
+    const logTime = new Date(log.date.substring(0, 10)).getTime();
+    return logTime >= startTime.getTime() && logTime <= targetDateObj.getTime();
+  });
+  
+  if (windowLogs.length === 0) return null;
+  const sum = windowLogs.reduce((acc, log) => acc + log.hrv, 0);
+  return Math.round(sum / windowLogs.length);
+}
+
 // 💡 HRV 個人基準線計算：取得目標日期往前的 21 天主睡眠 HRV 滾動平均值 ± 1 標準差 (±1 SD)
 function calculateRollingHrvBaseline(targetDateStr, allLogs) {
   const targetDateObj = new Date(targetDateStr);
@@ -2885,34 +2897,23 @@ window.openHrvDetailModal = function() {
       : "-";
   }
   
+  const sevenDayAvg = calculateSevenDayHrvAvg(todayStr, allLogs);
+
   const statusEl = document.getElementById("hrv-status-badge");
   if (statusEl) {
-    if (todayHrv === null) {
-      statusEl.textContent = "-";
+    if (sevenDayAvg === null || !todayBaseline) {
+      statusEl.textContent = "計算中...";
       statusEl.style.color = "var(--text-muted)";
-    } else if (todayBaseline) {
-      if (todayHrv >= todayBaseline.min && todayHrv <= todayBaseline.max) {
-        statusEl.textContent = "🟢 正常";
-        statusEl.style.color = "#7f8e81";
-      } else if (todayHrv < todayBaseline.min) {
-        statusEl.textContent = "🔴 壓力高";
-        statusEl.style.color = "#c4998e";
-      } else {
-        statusEl.textContent = "🔵 恢復佳";
-        statusEl.style.color = "#8fa0b5";
-      }
     } else {
-      // 數據不足 21 天的臨時對照
-      const tempAvg = nightLogsWithHrv.length > 0 ? nightLogsWithHrv.reduce((sum, l) => sum + l.hrv, 0) / nightLogsWithHrv.length : 50;
-      if (todayHrv >= tempAvg - 5 && todayHrv <= tempAvg + 5) {
-        statusEl.textContent = "🟢 正常 (計算中)";
+      if (sevenDayAvg >= todayBaseline.min && sevenDayAvg <= todayBaseline.max) {
+        statusEl.textContent = "🟢 平衡";
         statusEl.style.color = "#7f8e81";
-      } else if (todayHrv < tempAvg - 5) {
-        statusEl.textContent = "🔴 壓力高 (計算中)";
+      } else if (sevenDayAvg < todayBaseline.min) {
+        statusEl.textContent = "🔴 偏低";
         statusEl.style.color = "#c4998e";
       } else {
-        statusEl.textContent = "🔵 恢復佳 (計算中)";
-        statusEl.style.color = "#8fa0b5";
+        statusEl.textContent = "🟡 不平衡";
+        statusEl.style.color = "#d4a373";
       }
     }
   }
@@ -2920,30 +2921,19 @@ window.openHrvDetailModal = function() {
   // 💡 更新 HRV 生理狀態解說內容
   const explanationDescEl = document.getElementById("hrv-explanation-desc");
   if (explanationDescEl) {
-    if (todayHrv === null) {
-      explanationDescEl.textContent = "今日尚未登錄 HRV。請於睡眠表單中記錄以取得個人生理狀態解析。";
+    if (sevenDayAvg === null || !todayBaseline) {
+      explanationDescEl.textContent = "資料量不足。請持續記錄 HRV 以便計算 7 天平均與 21 天個人基準線，為您解析生理狀態。";
     } else {
-      let isWithin = false;
-      let isBelow = false;
-      let isAbove = false;
-      if (todayBaseline) {
-        isWithin = todayHrv >= todayBaseline.min && todayHrv <= todayBaseline.max;
-        isBelow = todayHrv < todayBaseline.min;
-        isAbove = todayHrv > todayBaseline.max;
-      } else {
-        // Fallback 近似對照
-        const tempAvg = nightLogsWithHrv.length > 0 ? nightLogsWithHrv.reduce((sum, l) => sum + l.hrv, 0) / nightLogsWithHrv.length : 50;
-        isWithin = todayHrv >= tempAvg - 5 && todayHrv <= tempAvg + 5;
-        isBelow = todayHrv < tempAvg - 5;
-        isAbove = todayHrv > tempAvg + 5;
-      }
+      const isWithin = sevenDayAvg >= todayBaseline.min && sevenDayAvg <= todayBaseline.max;
+      const isBelow = sevenDayAvg < todayBaseline.min;
+      const isAbove = sevenDayAvg > todayBaseline.max;
       
       if (isWithin) {
-        explanationDescEl.innerHTML = "今日 HRV 落在您的個人基線內。這通常代表您的<strong>自主神經系統平衡穩定</strong>，身體恢復與生理壓力維持在健康的正常狀態，可照常進行工作或運動。";
+        explanationDescEl.innerHTML = "過去 7 天的平均 HRV 落在您的個人基線內。這代表您的<strong>自主神經系統平衡穩定</strong>，身體正在有效平衡訓練與生活壓力。";
       } else if (isBelow) {
-        explanationDescEl.innerHTML = "今日 HRV 低於您的個人基線。可能與<strong>疲勞累積、睡眠不足、心理壓力過大、發炎/生病、飲酒</strong>或前日進行高強度訓練有關，代表身體恢復欠佳，建議今日適度減壓並注重休養。";
+        explanationDescEl.innerHTML = "過去 7 天的平均 HRV 顯著偏低。可能與<strong>長期疲勞累積、持續壓力、或身體正在對抗疾病</strong>有關，建議安排額外的休息與恢復。";
       } else if (isAbove) {
-        explanationDescEl.innerHTML = "今日 HRV 高於您的個人基線。這通常代表您的<strong>身體恢復良好、壓力較低、睡眠充足且精力充沛</strong>。但請注意：<strong>若 HRV 異常偏高且持續數天</strong>，建議觀察是否伴隨其他身體不適或變化。";
+        explanationDescEl.innerHTML = "過去 7 天的平均 HRV 高於您的個人基線。這通常代表您的<strong>身體正在對新壓力產生代償反應</strong>，也可能是準備進入更佳狀態的徵兆。";
       }
     }
   }
@@ -2953,15 +2943,15 @@ window.openHrvDetailModal = function() {
   if (container) {
     container.innerHTML = "";
     
-    const last7Days = [];
-    for (let i = 6; i >= 0; i--) {
+    const last28Days = [];
+    for (let i = 27; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      last7Days.push(getLocalDateString(d));
+      last28Days.push(getLocalDateString(d));
     }
     
-    // 計算這 7 天中每一天的 HRV 數值與滾動基準線
-    const chartData = last7Days.map(dateStr => {
+    // 計算這 28 天中每一天的 HRV 數值與滾動基準線
+    const chartData = last28Days.map(dateStr => {
       const log = allLogs.find(l => l.date.substring(0, 10) === dateStr && l.type === "night");
       const hrvVal = log ? log.hrv || null : null;
       
@@ -3015,7 +3005,8 @@ window.openHrvDetailModal = function() {
     const paddingX = 35;
     const paddingY = 22;
     
-    const getX = (idx) => paddingX + (idx / 6) * (svgWidth - 2 * paddingX);
+    const totalPoints = chartData.length;
+    const getX = (idx) => paddingX + (idx / (totalPoints - 1)) * (svgWidth - 2 * paddingX);
     const getY = (val) => {
       if (chartMax === chartMin) return svgHeight / 2;
       return paddingY + (1 - (val - chartMin) / (chartMax - chartMin)) * (svgHeight - 2 * paddingY);
@@ -3066,10 +3057,12 @@ window.openHrvDetailModal = function() {
     chartData.forEach((d, idx) => {
       const x = getX(idx);
       
-      // 日期與星期標籤
-      const dateObj = new Date(d.dateStr);
-      svgHtml += `<text x="${x}" y="123" text-anchor="middle" font-size="8.5" fill="var(--text-muted)" font-weight="500">${d.dateStr.substring(8, 10)}</text>`;
-      svgHtml += `<text x="${x}" y="133" text-anchor="middle" font-size="8" fill="var(--text-dim)">(${weekdays[dateObj.getDay()]})</text>`;
+      // 日期與星期標籤 (只顯示特定間隔，避免擁擠)
+      if (idx % 7 === 6 || idx === totalPoints - 1 || idx === 0) {
+        const dateObj = new Date(d.dateStr);
+        svgHtml += `<text x="${x}" y="123" text-anchor="middle" font-size="8.5" fill="var(--text-muted)" font-weight="500">${d.dateStr.substring(8, 10)}</text>`;
+        svgHtml += `<text x="${x}" y="133" text-anchor="middle" font-size="8" fill="var(--text-dim)">(${weekdays[dateObj.getDay()]})</text>`;
+      }
       
       // 數據節點
       if (d.hrv !== null) {
@@ -3086,12 +3079,15 @@ window.openHrvDetailModal = function() {
         }
         
         // 外圓點
-        svgHtml += `<circle cx="${x}" cy="${y}" r="4.5" fill="${color}" stroke="#ffffff" stroke-width="1.5" style="filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.1));" />`;
-        // 頂部數值
-        svgHtml += `<text x="${x}" y="${y - 9}" text-anchor="middle" font-size="8.5" fill="var(--text-color)" font-weight="600">${d.hrv}</text>`;
+        svgHtml += `<circle cx="${x}" cy="${y}" r="3.5" fill="${color}" stroke="#ffffff" stroke-width="1.5" style="filter: drop-shadow(0px 1px 2px rgba(0,0,0,0.1));" />`;
+        
+        // 頂部數值 (只顯示最後一天的數值，保持畫面乾淨)
+        if (idx === totalPoints - 1) {
+          svgHtml += `<text x="${x}" y="${y - 9}" text-anchor="middle" font-size="8.5" fill="var(--text-color)" font-weight="600">${d.hrv}</text>`;
+        }
       } else {
         // 無記錄節點輔助小灰點
-        svgHtml += `<circle cx="${x}" cy="${getY(chartMin + (chartMax-chartMin)/2)}" r="2" fill="rgba(150,150,150,0.15)" />`;
+        svgHtml += `<circle cx="${x}" cy="${getY(chartMin + (chartMax-chartMin)/2)}" r="1.5" fill="rgba(150,150,150,0.15)" />`;
       }
     });
     
@@ -3321,9 +3317,10 @@ Synthesize all the uploaded screenshots and extract the following fields if they
 3. "deepSleep": Deep sleep duration in hours (as a float, e.g. 1.77 for 1時46分).
 4. "remSleep": REM sleep duration in hours (as a float, e.g. 0.33 for 20分).
 5. "hrv": HRV value in ms (as an integer, e.g. 55).
-6. "bedtime": Estimated bedtime in strict "YYYY-MM-DDTHH:MM" format (e.g. 2026-06-26T22:15). Default the date part to: ${yesterdayStr} unless the image explicitly shows a different date. Hours and minutes must be 2-digit (padded with zero if needed, e.g. 05:08, NOT 5:8).
-7. "wakeupTime": Estimated wakeup time in strict "YYYY-MM-DDTHH:MM" format (e.g. 2026-06-27T06:23). Default the date part to: ${selectedDate} unless the image explicitly shows a different date. Hours and minutes must be 2-digit (padded with zero if needed, e.g. 05:08, NOT 5:8).
-8. "notes": Any brief description of sleep patterns if visible.
+6. "restingHeartRate": Resting heart rate (RHR / 靜止心率) in bpm (as an integer, e.g. 60).
+7. "bedtime": Estimated bedtime in strict "YYYY-MM-DDTHH:MM" format (e.g. 2026-06-26T22:15). Default the date part to: ${yesterdayStr} unless the image explicitly shows a different date. Hours and minutes must be 2-digit (padded with zero if needed, e.g. 05:08, NOT 5:8).
+8. "wakeupTime": Estimated wakeup time in strict "YYYY-MM-DDTHH:MM" format (e.g. 2026-06-27T06:23). Default the date part to: ${selectedDate} unless the image explicitly shows a different date. Hours and minutes must be 2-digit (padded with zero if needed, e.g. 05:08, NOT 5:8).
+9. "notes": Any brief description of sleep patterns if visible.
 
 Format your output ONLY as a valid JSON object. Do not include markdown code block formatting (e.g., do not wrap in \`\`\`json).
 Example:
@@ -3333,6 +3330,7 @@ Example:
   "deepSleep": 1.77,
   "remSleep": 0.33,
   "hrv": null,
+  "restingHeartRate": null,
   "bedtime": "${yesterdayStr}T23:15",
   "wakeupTime": "${selectedDate}T06:23",
   "notes": "Garmin screenshot import"
@@ -3402,6 +3400,9 @@ Example:
     }
     if (parsedData.hrv) {
       document.getElementById("sleep-hrv").value = parsedData.hrv;
+    }
+    if (parsedData.restingHeartRate) {
+      document.getElementById("sleep-rhr").value = parsedData.restingHeartRate;
     }
     if (parsedData.bedtime) {
       document.getElementById("sleep-bedtime").value = parsedData.bedtime;

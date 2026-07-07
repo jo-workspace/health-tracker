@@ -98,6 +98,7 @@
               </div>
               <div style="font-size:0.75rem; color:var(--text-muted); display:flex; justify-content:space-between; margin-top:2px;">
                 <span id="val-sleep-nap">小睡：-</span>
+                <span id="val-sleep-rhr">靜心：-</span>
                 <span id="val-sleep-stress">壓力：-</span>
               </div>
             </div>
@@ -534,9 +535,16 @@
             <label for="sleep-duration">睡眠時數 (小時)</label>
             <input type="number" id="sleep-duration" step="0.1" min="0" max="24" placeholder="例如：7.5" required>
           </div>
+        </div>
+
+        <div class="form-row">
           <div class="form-group">
             <label for="sleep-hrv">HRV 心率變異值 (ms)</label>
             <input type="number" id="sleep-hrv" min="0" placeholder="例如：55">
+          </div>
+          <div class="form-group">
+            <label for="sleep-rhr">靜止心率 (bpm)</label>
+            <input type="number" id="sleep-rhr" min="0" placeholder="例如：60">
           </div>
         </div>
 
@@ -740,7 +748,7 @@
           <span id="hrv-explanation-desc">請登錄今日的 HRV 資料以取得生理狀態解讀。</span>
         </div>
 
-        <h4 style="font-size:0.85rem; margin-bottom:8px;">近 7 天 HRV 趨勢與基準線</h4>
+        <h4 style="font-size:0.85rem; margin-bottom:8px;">近 28 天 HRV 趨勢與基準線</h4>
         <div class="chart-container" id="hrv-chart-container" style="position:relative; overflow:visible;">
           <!-- SVG 圖表由 JS 動態生成 -->
         </div>
