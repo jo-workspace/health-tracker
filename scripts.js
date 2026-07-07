@@ -2953,7 +2953,7 @@ window.openHrvDetailModal = function() {
     // 計算這 28 天中每一天的 HRV 數值與滾動基準線
     const chartData = last28Days.map(dateStr => {
       const log = allLogs.find(l => l.date.substring(0, 10) === dateStr && l.type === "night");
-      const hrvVal = log ? log.hrv || null : null;
+      const hrvVal = log && log.hrv ? calculateSevenDayHrvAvg(dateStr, allLogs) : null;
       
       let baseline = calculateRollingHrvBaseline(dateStr, allLogs);
       // Fallback：當歷史數據不夠 21 天，使用全部歷史 HRV 的平均值與標準差作為近似包絡線，防範畫面出現空白區域
